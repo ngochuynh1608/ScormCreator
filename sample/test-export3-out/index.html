@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bài giảng SCORM</title>
+  <style>:root {
+  --bg: #e8eef2;
+  --ink: #12263a;
+  --panel: #0f2a36;
+  --accent: #3ddc97;
+  --muted: #5f7b88;
+  --danger: #e36414;
+  --card: #ffffff;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 10% 10%, rgba(61,220,151,.18), transparent 40%),
+    radial-gradient(circle at 90% 0%, rgba(124,196,232,.25), transparent 35%),
+    var(--bg);
+}
+#app { min-height: 100vh; display: flex; flex-direction: column; }
+.top {
+  display: flex; justify-content: space-between; align-items: end;
+  padding: 1rem 1.25rem; gap: 1rem;
+}
+.brand { margin: 0; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; font-size: .75rem; font-weight: 700; }
+h1 { margin: .2rem 0 0; font-size: 1.35rem; }
+.meta { display: flex; gap: 1rem; color: var(--muted); font-weight: 600; }
+main {
+  flex: 1; display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem;
+  padding: 0 1.25rem 1.25rem;
+}
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+.stage {
+  background: var(--card); border-radius: 18px; overflow: hidden;
+  min-height: 360px; box-shadow: 0 10px 40px rgba(18,38,58,.08);
+  display: flex; align-items: stretch; justify-content: center;
+}
+.stage img { width: 100%; height: 100%; object-fit: contain; background: #0f2a36; display: block; }
+.stage .content-fallback { padding: 2rem; width: 100%; }
+.stage h2 { margin-top: 0; }
+.stage p { white-space: pre-wrap; line-height: 1.5; color: #345; }
+.panel {
+  background: var(--panel); color: #edf7f2; border-radius: 18px; padding: 1rem;
+  display: flex; flex-direction: column; gap: .85rem;
+}
+audio { width: 100%; }
+.quiz.hidden { display: none; }
+.quiz label {
+  display: block; background: rgba(255,255,255,.06); margin: .4rem 0;
+  padding: .7rem .8rem; border-radius: 10px; cursor: pointer;
+}
+.nav { display: flex; gap: .6rem; margin-top: auto; }
+button {
+  border: 0; border-radius: 999px; padding: .7rem 1rem; font-weight: 700; cursor: pointer;
+  background: var(--accent); color: #083024;
+}
+button:disabled { opacity: .45; cursor: not-allowed; }
+#btn-prev { background: rgba(255,255,255,.12); color: #fff; }
+.feedback { min-height: 1.2em; color: #b7f5d6; }
+.feedback.bad { color: #ffd2b3; }
+.error-box { color: #b42318; background: #fee4e2; padding: .75rem 1rem; border-radius: 12px; margin: 1rem 1.25rem; }
+</style>
+</head>
+<body>
+  <div id="app">
+    <header class="top">
+      <div>
+        <p class="brand">ScormCreator</p>
+        <h1 id="course-title">Đang tải…</h1>
+      </div>
+      <div class="meta">
+        <span id="progress-label">0 / 0</span>
+        <span id="score-label">Điểm: 0</span>
+      </div>
+    </header>
+    <main>
+      <section id="stage" class="stage"></section>
+      <aside class="panel">
+        <audio id="audio" controls></audio>
+        <div id="quiz-box" class="quiz hidden"></div>
+        <p id="feedback" class="feedback"></p>
+        <div class="nav">
+          <button id="btn-prev" type="button">Trước</button>
+          <button id="btn-next" type="button">Tiếp</button>
+        </div>
+      </aside>
+    </main>
+  </div>
+  <script>window.__COURSE__ = {
+  "title": "IntroBitlearn_v3.0",
+  "scormVersion": "1.2",
+  "passScore": 70,
+  "slides": [
+    {
+      "id": "4c9b8046-d829-4680-90e2-d459f3f9bff3",
+      "type": "content",
+      "title": "BITLEARN",
+      "bodyText": "GIẢI PHÁP ĐÀO TẠO TRỰC TUYẾN DÀNH CHO DOANH NGHIỆP\nVÀ TỔ CHỨC\nAdd:\nĐIện Biên Phủ\n, Quận\nThanh Khê,\nĐà Nẵng |\nTel:\n0912 947 499 |\nWebsite:\nhttps://bitlearn.vn",
+      "narrationScript": "",
+      "audio": "audio/4c9b8046-d829-4680-90e2-d459f3f9bff3.mp3",
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-1.png"
+    },
+    {
+      "id": "65b06bfc-1a37-43ee-9900-43b816e75bff",
+      "type": "content",
+      "title": "Bitlearn là gì ?",
+      "bodyText": "Nền tảng đa năng, toàn diện\nBitlearn Cloud E-learning là dịch vụ giúp người dùng triển khai và sở hữu hệ thống đào tạo \u0026 học tập trực tuyến đa năng và toàn diện của riêng mình, một cách dễ dàng và nhanh chóng.\nĐáp ứng mọi loại hình đào tạo\nPhát triển trên nền tảng Moodle (nền tảng quản lý học tập phổ biến nhất trên thế giới) và hạ tầng đám mây mạnh mẽ sẵn có, Bitlearn Cloud E-learning đã phát triển các tính năng đáp ứng mọi nhu cầu và mọi loại hình đào tạo khác nhau từ trường học cho đến Tổ chức giáo dục, Doanh nghiệp, Cơ quan hành chính.\nBitlearn Cloud E-learning - nền tảng học tập tuyệt vời\nCung cấp giao diện cấu hình hiện đại, thông minh giúp học viên có trải nghiệm học tập dễ dàng, thiết lập các cấu trúc khóa học, quản trị nội dung và tùy chỉnh các khối chức năng đơn giản. Việc triển khai hệ thống đơn giản, nhờ vậy người dùng có nhiều thời gian hơn để tập trung cho các công việc chuyên môn như xây dựng nội dung học liệu hấp dẫn, chất lượng.",
+      "narrationScript": "Nền tảng đa năng, toàn diện\nBitlearn Cloud E-learning là dịch vụ giúp người dùng triển khai và sở hữu hệ thống đào tạo \u0026 học tập trực tuyến đa năng và toàn diện của riêng mình, một cách dễ dàng và nhanh chóng.\nĐáp ứng mọi loại hình đào tạo\nPhát triển trên nền tảng Moodle (nền tảng quản lý học tập phổ biến nhất trên thế giới) và hạ tầng đám mây mạnh mẽ sẵn có, Bitlearn Cloud E-learning đã phát triển các tính năng đáp ứng mọi nhu cầu và mọi loại hình đào tạo khác nhau từ trường học cho đến Tổ chức giáo dục, Doanh nghiệp, Cơ quan hành chính.\nBitlearn Cloud E-learning - nền tảng học tập tuyệt vời\nCung cấp giao diện cấu hình hiện đại, thông minh giúp học viên có trải nghiệm học tập dễ dàng, thiết lập các cấu trúc khóa học, quản trị nội dung và tùy chỉnh các khối chức năng đơn giản. Việc triển khai hệ thống đơn giản, nhờ vậy người dùng có nhiều thời gian hơn để tập trung cho các công việc chuyên môn như xây dựng nội dung học liệu hấp dẫn, chất lượng.",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-2.png"
+    },
+    {
+      "id": "315724c0-a713-400b-b978-341371b0a270",
+      "type": "content",
+      "title": "QUÁ TRÌNH PHÁT TRIỂN",
+      "bodyText": "VER 1.0\nVER 2.0\nVER\nVER 3.0",
+      "narrationScript": "VER 1.0\nVER 2.0\nVER\nVER 3.0",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-3.png"
+    },
+    {
+      "id": "d7c8f56a-c77e-4ff0-bb63-cfb86efe5427",
+      "type": "content",
+      "title": "Giải pháp Bitlearn mang lại",
+      "bodyText": "Đào tạo nhân sự\nĐào tạo sản phẩm\nĐào tạo hội nhập\nĐào tạo khách hàng\nThi đánh sát hạch trực tuyến",
+      "narrationScript": "Đào tạo nhân sự\nĐào tạo sản phẩm\nĐào tạo hội nhập\nĐào tạo khách hàng\nThi đánh sát hạch trực tuyến",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-4.png"
+    },
+    {
+      "id": "91218709-8dc0-47b8-8337-37a03a10b9ff",
+      "type": "content",
+      "title": "TẠI SAO CHỌN BITLEARN?",
+      "bodyText": "",
+      "narrationScript": "TẠI SAO CHỌN BITLEARN?",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-5.png"
+    },
+    {
+      "id": "5bbc9256-9108-4554-a011-8afed6fc3434",
+      "type": "content",
+      "title": "LỢI ÍCH ỨNG DỤNG BITLEARN",
+      "bodyText": "Quản trị tập trung.\nVận hành theo hệ thống.\nThông tin đáp ứng nhanh, chính xác.\nCho phép đào tạo mọi nơi.\nChủ động thời gian học.\nChủ động nội dung học.\n- Tối ưu 40%\nTHỜI GIAN\n- Tiết tiệm 60%\nCHI PHÍ",
+      "narrationScript": "Quản trị tập trung.\nVận hành theo hệ thống.\nThông tin đáp ứng nhanh, chính xác.\nCho phép đào tạo mọi nơi.\nChủ động thời gian học.\nChủ động nội dung học.\n- Tối ưu 40%\nTHỜI GIAN\n- Tiết tiệm 60%\nCHI PHÍ",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-6.png"
+    },
+    {
+      "id": "672195b9-119a-4ba5-9b85-df8a7572bc3d",
+      "type": "content",
+      "title": "KHẢ NĂNG TÍCH HỢP BITLEARN",
+      "bodyText": "Wordpress\nLớp học trực tuyến\nHRM\nMicrosoft, Google\nLMS",
+      "narrationScript": "Wordpress\nLớp học trực tuyến\nHRM\nMicrosoft, Google\nLMS",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-7.png"
+    },
+    {
+      "id": "c7d86bd9-6850-4871-b12a-9bee2df84177",
+      "type": "content",
+      "title": "PHÂN HỆ CHÍNH",
+      "bodyText": "Hệ thống Elearning\nQuản lý\nhệ thống\nNgười dùng\nKhóa học\nHọc viên\nChức năng\nQuản trị viên (3)\nGiảng viên (2)\nHọc viên (1)",
+      "narrationScript": "Hệ thống Elearning\nQuản lý\nhệ thống\nNgười dùng\nKhóa học\nHọc viên\nChức năng\nQuản trị viên (3)\nGiảng viên (2)\nHọc viên (1)",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-8.png"
+    },
+    {
+      "id": "79103b6c-8e32-4665-94dd-0ab4ec76f4c3",
+      "type": "content",
+      "title": "Chức năng học tập",
+      "bodyText": "Quản lý khóa học online\nHỗ trợ định dạng Scorm , H5p , Pdf, video.\nHọc theo chương trình\nCông cụ xây dựng nội dung\nCấp chứng chỉ online",
+      "narrationScript": "Quản lý khóa học online\nHỗ trợ định dạng Scorm , H5p , Pdf, video.\nHọc theo chương trình\nCông cụ xây dựng nội dung\nCấp chứng chỉ online",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-9.png"
+    },
+    {
+      "id": "f371b27a-b7d5-4306-a837-ce043ceabda3",
+      "type": "content",
+      "title": "Chức năng",
+      "bodyText": "thi trực tuyến\nNgân hàng câu hỏi\nTạo đề thi tự động bằng ngân hàng câu hỏi\nNhiều định dạng câu hỏi: 1 đáp án , nhiều đáp án, tự luận , kéo thả\nTính năng thi an toàn.\nPhân công chấm điểm tự luận.",
+      "narrationScript": "thi trực tuyến\nNgân hàng câu hỏi\nTạo đề thi tự động bằng ngân hàng câu hỏi\nNhiều định dạng câu hỏi: 1 đáp án , nhiều đáp án, tự luận , kéo thả\nTính năng thi an toàn.\nPhân công chấm điểm tự luận.",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-10.png"
+    },
+    {
+      "id": "eb4cf98a-f5a0-42ed-a779-f41f2f11b375",
+      "type": "content",
+      "title": "CÁC BÁO CÁO",
+      "bodyText": "Báo cáo:\nBáo cáo từng khóa học\nBáo cáo từng hoạt động trong khóa học\nBáo cáo chi tiết từng học viên\nBáo cáo theo nhóm người dùng\nBáo cáo\ntùy biến.\nBáo cáo thể\nhiện\ndưới dạng biểu đồ và danh sách giúp quản lý đào tạo dễ dàng\nđánh giá chất lượng đào tạo",
+      "narrationScript": "Báo cáo:\nBáo cáo từng khóa học\nBáo cáo từng hoạt động trong khóa học\nBáo cáo chi tiết từng học viên\nBáo cáo theo nhóm người dùng\nBáo cáo\ntùy biến.\nBáo cáo thể\nhiện\ndưới dạng biểu đồ và danh sách giúp quản lý đào tạo dễ dàng\nđánh giá chất lượng đào tạo",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-11.png"
+    },
+    {
+      "id": "49e5fa5f-95fc-4217-a39b-cdb10f0401c5",
+      "type": "content",
+      "title": "Hình Thức Triển Khai",
+      "bodyText": "Bitlearn\ntriển khai giải pháp E-learning bằng mô hình Cloud Server. Giúp triển khai nhanh chóng tiện\nlợi\n.\nHệ thống riêng biệt.\nMở rộng tài nguyên dễ dàng.\nĐộ bảo mật cao.\nTiết\nkiệm\nchi phí triển khai",
+      "narrationScript": "Bitlearn\ntriển khai giải pháp E-learning bằng mô hình Cloud Server. Giúp triển khai nhanh chóng tiện\nlợi\n.\nHệ thống riêng biệt.\nMở rộng tài nguyên dễ dàng.\nĐộ bảo mật cao.\nTiết\nkiệm\nchi phí triển khai",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-12.png"
+    },
+    {
+      "id": "48349a53-d08e-42e2-8b07-ceb8bc52e958",
+      "type": "content",
+      "title": "Có thể nâng cấp gói trong quá trình sử dụng.",
+      "bodyText": "Bảng giá và chính sách",
+      "narrationScript": "Bảng giá và chính sách",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-13.png"
+    },
+    {
+      "id": "01fa4a4f-372c-4750-951e-492e364c4833",
+      "type": "content",
+      "title": "KẾ HOẠCH TRIỂN KHAI",
+      "bodyText": "Kế hoạch triển khai giải pháp Bitlearn\n{EA0EE370-9967-4AA7-872E-15EA7567228C}\nSTT\nCông việc\nGiai đoạn 1\nGiai đoạn 2\nt1\nt2\nt3\nt4\nTư vấn phân tích yêu cầu\nT\nùy biến và phát triển\nTriển khai\nĐào tạo và\nphát triển nội dung\nSử dụng và hỗ trợ",
+      "narrationScript": "Kế hoạch triển khai giải pháp Bitlearn\n{EA0EE370-9967-4AA7-872E-15EA7567228C}\nSTT\nCông việc\nGiai đoạn 1\nGiai đoạn 2\nt1\nt2\nt3\nt4\nTư vấn phân tích yêu cầu\nT\nùy biến và phát triển\nTriển khai\nĐào tạo và\nphát triển nội dung\nSử dụng và hỗ trợ",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-14.png"
+    },
+    {
+      "id": "26f7096a-ba35-483a-b3b9-c5fa9bfbd0ec",
+      "type": "content",
+      "title": "KHÁCH HÀNG TIÊU BIỂU",
+      "bodyText": "ĐANG SỬ DỤNG",
+      "narrationScript": "ĐANG SỬ DỤNG",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-15.png"
+    },
+    {
+      "id": "0e6bff51-a6d8-45e3-97b7-e95bfb63b2a3",
+      "type": "content",
+      "title": "Trụ sở chính",
+      "bodyText": ": 31 Trần Phú, Quận Hải Châu, Đà Nẵng.\nĐại diện\n: Huỳnh Phúc Ngọc. ĐT: 0912.947.499\nEmail :\nngochuynh@\nbitlearn.vn\nWebsite\n:\nhttps://bitlearn.vn/\nTHÔNG TIN LIÊN HỆ\nCÔNG TY TNHH MTV PHẦN MỀM IONSITE",
+      "narrationScript": ": 31 Trần Phú, Quận Hải Châu, Đà Nẵng.\nĐại diện\n: Huỳnh Phúc Ngọc. ĐT: 0912.947.499\nEmail :\nngochuynh@\nbitlearn.vn\nWebsite\n:\nhttps://bitlearn.vn/\nTHÔNG TIN LIÊN HỆ\nCÔNG TY TNHH MTV PHẦN MỀM IONSITE",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-16.png"
+    },
+    {
+      "id": "f5d6b15d-6c2b-407f-bc05-26d8f64a7719",
+      "type": "content",
+      "title": "CẢM ƠN",
+      "bodyText": "",
+      "narrationScript": "CẢM ƠN",
+      "audio": null,
+      "audioDurationMs": null,
+      "thumbnail": "thumbs/slide-17.png"
+    }
+  ]
+};</script>
+  <script>/* Minimal SCORM 1.2 / 2004 wrapper */
+(function (global) {
+  var API = null;
+  var version = null;
+
+  function findAPI(win) {
+    var attempts = 0;
+    while (win && attempts < 500) {
+      try {
+        if (win.API_1484_11) return { api: win.API_1484_11, version: "2004" };
+        if (win.API) return { api: win.API, version: "1.2" };
+      } catch (e) {}
+      if (win.parent && win.parent === win) break;
+      try { win = win.parent; } catch (e) { break; }
+      attempts++;
+    }
+    return null;
+  }
+
+  function init() {
+    var found = null;
+    try { found = findAPI(window); } catch (e) {}
+    if (!found) {
+      try { if (window.opener) found = findAPI(window.opener); } catch (e) {}
+    }
+    if (!found) return false;
+    API = found.api;
+    version = found.version;
+    try {
+      if (version === "2004") API.Initialize("");
+      else API.LMSInitialize("");
+    } catch (e) {
+      return false;
+    }
+    return true;
+  }
+
+  function get(el) {
+    if (!API) return "";
+    try {
+      return version === "2004" ? API.GetValue(el) : API.LMSGetValue(el);
+    } catch (e) { return ""; }
+  }
+
+  function set(el, val) {
+    if (!API) return "false";
+    try {
+      return version === "2004" ? API.SetValue(el, val) : API.LMSSetValue(el, val);
+    } catch (e) { return "false"; }
+  }
+
+  function commit() {
+    if (!API) return "false";
+    try {
+      return version === "2004" ? API.Commit("") : API.LMSCommit("");
+    } catch (e) { return "false"; }
+  }
+
+  function finish() {
+    if (!API) return "false";
+    try {
+      return version === "2004" ? API.Terminate("") : API.LMSFinish("");
+    } catch (e) { return "false"; }
+  }
+
+  function mapStatus(status) {
+    if (version === "2004") {
+      if (status === "completed") return { completion: "completed", success: "passed" };
+      if (status === "incomplete") return { completion: "incomplete", success: "unknown" };
+      if (status === "failed") return { completion: "completed", success: "failed" };
+      if (status === "passed") return { completion: "completed", success: "passed" };
+    }
+    return { lesson: status };
+  }
+
+  global.ScormBridge = {
+    connected: false,
+    version: null,
+    connect: function () {
+      this.connected = init();
+      this.version = version;
+      return this.connected;
+    },
+    getSuspendData: function () {
+      return version === "2004" ? get("cmi.suspend_data") : get("cmi.core.lesson_location");
+    },
+    setSuspendData: function (data) {
+      if (version === "2004") set("cmi.suspend_data", data);
+      else set("cmi.core.lesson_location", data);
+      commit();
+    },
+    setScore: function (raw, min, max) {
+      if (version === "2004") {
+        set("cmi.score.raw", String(raw));
+        set("cmi.score.min", String(min));
+        set("cmi.score.max", String(max));
+        set("cmi.score.scaled", String(max ? raw / max : 0));
+      } else {
+        set("cmi.core.score.raw", String(raw));
+        set("cmi.core.score.min", String(min));
+        set("cmi.core.score.max", String(max));
+      }
+      commit();
+    },
+    setStatus: function (status) {
+      var mapped = mapStatus(status);
+      if (version === "2004") {
+        if (mapped.completion) set("cmi.completion_status", mapped.completion);
+        if (mapped.success) set("cmi.success_status", mapped.success);
+      } else {
+        set("cmi.core.lesson_status", mapped.lesson || status);
+      }
+      commit();
+    },
+    finish: function () { finish(); }
+  };
+})(window);
+</script>
+  <script>(function () {
+  var stage = document.getElementById("stage");
+  var quizBox = document.getElementById("quiz-box");
+  var feedback = document.getElementById("feedback");
+  var audio = document.getElementById("audio");
+  var btnPrev = document.getElementById("btn-prev");
+  var btnNext = document.getElementById("btn-next");
+  var progressLabel = document.getElementById("progress-label");
+  var scoreLabel = document.getElementById("score-label");
+  var titleEl = document.getElementById("course-title");
+
+  if (!stage || !titleEl) {
+    document.body.insertAdjacentHTML(
+      "afterbegin",
+      '<div class="error-box">Lỗi player: thiếu phần tử HTML bắt buộc.</div>'
+    );
+    return;
+  }
+
+  var course = null;
+  var index = 0;
+  var score = 0;
+  var maxScore = 0;
+  var attempts = {};
+  var answered = {};
+
+  function visibleSlides() {
+    return (course && course.slides) || [];
+  }
+
+  function updateChrome() {
+    var slides = visibleSlides();
+    progressLabel.textContent = (slides.length ? index + 1 : 0) + " / " + slides.length;
+    scoreLabel.textContent = "Điểm: " + score + (maxScore ? " / " + maxScore : "");
+    btnPrev.disabled = index <= 0;
+    var slide = slides[index];
+    var gated = !!(slide && slide.type === "quiz" && slide.gating && !answered[slide.id]);
+    btnNext.disabled = index >= slides.length - 1 || gated;
+  }
+
+  function reportProgress() {
+    if (!window.ScormBridge) return;
+    var slides = visibleSlides();
+    var ratio = slides.length ? (index + 1) / slides.length : 0;
+    ScormBridge.setSuspendData(JSON.stringify({ index: index, score: score, answered: answered }));
+    if (ratio >= 1) {
+      var pass = !maxScore || (score / maxScore) * 100 >= (course.passScore || 70);
+      ScormBridge.setScore(score, 0, maxScore || 100);
+      ScormBridge.setStatus(pass ? "passed" : "failed");
+    } else {
+      ScormBridge.setStatus("incomplete");
+      if (maxScore) ScormBridge.setScore(score, 0, maxScore);
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function showContentSlide(slide) {
+    var fallback =
+      '<div class="content-fallback"><h2>' +
+      escapeHtml(slide.title) +
+      "</h2><p>" +
+      escapeHtml(slide.bodyText || slide.narrationScript || "") +
+      "</p></div>";
+
+    if (slide.thumbnail) {
+      var img = document.createElement("img");
+      img.src = slide.thumbnail;
+      img.alt = slide.title || "";
+      img.onerror = function () {
+        stage.innerHTML = fallback;
+      };
+      stage.innerHTML = "";
+      stage.appendChild(img);
+    } else {
+      stage.innerHTML = fallback;
+    }
+
+    if (slide.audio) {
+      audio.src = slide.audio;
+      try { audio.play(); } catch (e) {}
+    }
+  }
+
+  function submitQuiz(slide) {
+    attempts[slide.id] = (attempts[slide.id] || 0) + 1;
+    var selected = [];
+    var inputs = quizBox.querySelectorAll('input[name="q"]:checked');
+    for (var i = 0; i < inputs.length; i++) selected.push(inputs[i].value);
+    var correctIds = slide.options
+      .filter(function (o) { return o.correct; })
+      .map(function (o) { return o.id; })
+      .sort()
+      .join(",");
+    var chosen = selected.slice().sort().join(",");
+    var ok = correctIds === chosen && selected.length > 0;
+    if (ok) {
+      if (!answered[slide.id]) {
+        score += slide.points || 1;
+        answered[slide.id] = true;
+      }
+      feedback.textContent = slide.feedbackCorrect || "Chính xác!";
+      feedback.className = "feedback";
+      updateChrome();
+      reportProgress();
+      return;
+    }
+    feedback.textContent = slide.feedbackIncorrect || "Chưa đúng, hãy thử lại.";
+    feedback.className = "feedback bad";
+    var maxA = slide.maxAttempts || 0;
+    if (maxA > 0 && attempts[slide.id] >= maxA) {
+      answered[slide.id] = true;
+      updateChrome();
+    }
+    reportProgress();
+  }
+
+  function render() {
+    var slides = visibleSlides();
+    var slide = slides[index];
+    feedback.textContent = "";
+    feedback.className = "feedback";
+    quizBox.classList.add("hidden");
+    quizBox.innerHTML = "";
+    audio.removeAttribute("src");
+    try { audio.load(); } catch (e) {}
+    if (!slide) {
+      stage.innerHTML = "<div class='content-fallback'><p>Không có nội dung.</p></div>";
+      updateChrome();
+      return;
+    }
+
+    if (slide.type === "content") {
+      showContentSlide(slide);
+    } else {
+      stage.innerHTML =
+        '<div class="content-fallback"><h2>Câu hỏi</h2><p>' +
+        escapeHtml(slide.question) +
+        "</p></div>";
+      quizBox.classList.remove("hidden");
+      var opts = (slide.options || [])
+        .map(function (o) {
+          var inputType =
+            slide.quizType === "single" || slide.quizType === "truefalse"
+              ? "radio"
+              : "checkbox";
+          return (
+            '<label><input type="' +
+            inputType +
+            '" name="q" value="' +
+            o.id +
+            '"/> ' +
+            escapeHtml(o.text) +
+            "</label>"
+          );
+        })
+        .join("");
+      quizBox.innerHTML =
+        opts + '<button id="btn-submit" type="button">Gửi đáp án</button>';
+      var submitBtn = document.getElementById("btn-submit");
+      if (submitBtn) {
+        submitBtn.onclick = function () {
+          submitQuiz(slide);
+        };
+      }
+    }
+    updateChrome();
+    reportProgress();
+  }
+
+  function bootCourse(data) {
+    if (!data || !data.slides || !data.slides.length) {
+      titleEl.textContent = "Bài giảng trống";
+      stage.innerHTML =
+        "<div class='content-fallback'><p>Không có slide nào trong gói SCORM.</p></div>";
+      return;
+    }
+    course = data;
+    titleEl.textContent = data.title || "Bài giảng";
+    maxScore = (data.slides || [])
+      .filter(function (s) { return s.type === "quiz"; })
+      .reduce(function (sum, s) { return sum + (s.points || 1); }, 0);
+    if (window.ScormBridge) {
+      try {
+        ScormBridge.connect();
+        var raw = ScormBridge.getSuspendData();
+        if (raw) {
+          var saved = JSON.parse(raw);
+          if (typeof saved.index === "number") index = saved.index;
+          if (typeof saved.score === "number") score = saved.score;
+          if (saved.answered) answered = saved.answered;
+        }
+        ScormBridge.setStatus("incomplete");
+      } catch (e) {}
+    }
+    render();
+  }
+
+  function showLoadError(msg) {
+    titleEl.textContent = "Lỗi tải bài giảng";
+    stage.innerHTML =
+      "<div class='content-fallback'><p>" + escapeHtml(msg) + "</p></div>";
+  }
+
+  function loadCourse() {
+    if (window.__COURSE__ && typeof window.__COURSE__ === "object") {
+      bootCourse(window.__COURSE__);
+      return;
+    }
+    var embedded = document.getElementById("course-data");
+    if (embedded) {
+      var raw = (embedded.textContent || embedded.innerText || "").trim();
+      if (raw) {
+        try {
+          bootCourse(JSON.parse(raw));
+          return;
+        } catch (e) {
+          showLoadError("Dữ liệu nhúng không hợp lệ: " + (e && e.message ? e.message : e));
+          return;
+        }
+      }
+    }
+    if (typeof fetch === "function") {
+      fetch("course.json")
+        .then(function (r) {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then(bootCourse)
+        .catch(function (err) {
+          showLoadError(
+            "Không tải được course.json. Hãy giải nén đủ thư mục SCORM rồi mở index.html. (" +
+              (err && err.message ? err.message : err) +
+              ")"
+          );
+        });
+      return;
+    }
+    showLoadError("Trình duyệt không hỗ trợ tải course.json.");
+  }
+
+  if (btnPrev) {
+    btnPrev.onclick = function () {
+      if (index > 0) {
+        index -= 1;
+        render();
+      }
+    };
+  }
+  if (btnNext) {
+    btnNext.onclick = function () {
+      var slides = visibleSlides();
+      if (index < slides.length - 1) {
+        index += 1;
+        render();
+      }
+    };
+  }
+
+  window.addEventListener("beforeunload", function () {
+    if (window.ScormBridge) ScormBridge.finish();
+  });
+
+  loadCourse();
+})();
+</script>
+</body>
+</html>

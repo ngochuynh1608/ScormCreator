@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<manifest identifier="com.scormcreator.course" version="1"
+  xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2 imscp_rootv1p1p2.xsd
+                      http://www.imsglobal.org/xsd/imsmd_rootv1p2p1 imsmd_rootv1p2p1.xsd
+                      http://www.adlnet.org/xsd/adlcp_rootv1p2 adlcp_rootv1p2.xsd">
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>1.2</schemaversion>
+  </metadata>
+  <organizations default="org1">
+    <organization identifier="org1">
+      <title>IntroBitlearn_v3.0</title>
+      <item identifier="item1" identifierref="resource1" isvisible="true">
+        <title>IntroBitlearn_v3.0</title>
+        <adlcp:masteryscore>70</adlcp:masteryscore>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="resource1" type="webcontent" adlcp:scormtype="sco" href="index.html">
+      <file href="index.html"/>
+      <file href="player.js"/>
+      <file href="player.css"/>
+      <file href="scorm-api.js"/>
+      <file href="course.json"/>
+      <file href="thumbs/slide-1.png"/>
+      <file href="audio/4c9b8046-d829-4680-90e2-d459f3f9bff3.mp3"/>
+      <file href="media/image1.png"/>
+      <file href="thumbs/slide-2.png"/>
+      <file href="media/image2.jpg"/>
+      <file href="media/image3.png"/>
+      <file href="thumbs/slide-3.png"/>
+      <file href="thumbs/slide-4.png"/>
+      <file href="thumbs/slide-5.png"/>
+      <file href="media/image4.png"/>
+      <file href="thumbs/slide-6.png"/>
+      <file href="thumbs/slide-7.png"/>
+      <file href="thumbs/slide-8.png"/>
+      <file href="thumbs/slide-9.png"/>
+      <file href="media/image11.png"/>
+      <file href="thumbs/slide-10.png"/>
+      <file href="media/image5.png"/>
+      <file href="thumbs/slide-11.png"/>
+      <file href="thumbs/slide-12.png"/>
+      <file href="media/image7.jpg"/>
+      <file href="thumbs/slide-13.png"/>
+      <file href="media/image6.png"/>
+      <file href="thumbs/slide-14.png"/>
+      <file href="thumbs/slide-15.png"/>
+      <file href="media/image12.png"/>
+      <file href="media/image18.png"/>
+      <file href="media/image21.png"/>
+      <file href="media/image15.png"/>
+      <file href="media/image19.png"/>
+      <file href="media/image9.png"/>
+      <file href="media/image10.png"/>
+      <file href="media/image16.png"/>
+      <file href="media/image14.png"/>
+      <file href="media/image8.png"/>
+      <file href="media/image17.png"/>
+      <file href="media/image20.png"/>
+      <file href="thumbs/slide-16.png"/>
+      <file href="thumbs/slide-17.png"/>
+      <file href="media/image13.jpg"/>
+    </resource>
+  </resources>
+</manifest>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<manifest identifier="com.scormcreator.course" version="1"
+  xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2 imscp_rootv1p1p2.xsd
+                      http://www.imsglobal.org/xsd/imsmd_rootv1p2p1 imsmd_rootv1p2p1.xsd
+                      http://www.adlnet.org/xsd/adlcp_rootv1p2 adlcp_rootv1p2.xsd">
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>1.2</schemaversion>
+  </metadata>
+  <organizations default="org1">
+    <organization identifier="org1">
+      <title>IntroBitlearn_v3.0</title>
+      <item identifier="item1" identifierref="resource1" isvisible="true">
+        <title>IntroBitlearn_v3.0</title>
+        <adlcp:masteryscore>70</adlcp:masteryscore>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="resource1" type="webcontent" adlcp:scormtype="sco" href="index.html">
+      <file href="index.html"/>
+      <file href="player.js"/>
+      <file href="player.css"/>
+      <file href="scorm-api.js"/>
+      <file href="course.json"/>
+      <file href="course-data.js"/>
+      <file href="thumbs/slide-1.png"/>
+      <file href="audio/4c9b8046-d829-4680-90e2-d459f3f9bff3.mp3"/>
+      <file href="media/image1.png"/>
+      <file href="thumbs/slide-2.png"/>
+      <file href="audio/65b06bfc-1a37-43ee-9900-43b816e75bff.wav"/>
+      <file href="media/image2.jpg"/>
+      <file href="media/image3.png"/>
+      <file href="thumbs/slide-3.png"/>
+      <file href="audio/315724c0-a713-400b-b978-341371b0a270.wav"/>
+      <file href="thumbs/slide-4.png"/>
+      <file href="audio/d7c8f56a-c77e-4ff0-bb63-cfb86efe5427.wav"/>
+      <file href="thumbs/slide-5.png"/>
+      <file href="audio/91218709-8dc0-47b8-8337-37a03a10b9ff.wav"/>
+      <file href="media/image4.png"/>
+      <file href="thumbs/slide-6.png"/>
+      <file href="audio/5bbc9256-9108-4554-a011-8afed6fc3434.wav"/>
+      <file href="thumbs/slide-7.png"/>
+      <file href="audio/672195b9-119a-4ba5-9b85-df8a7572bc3d.wav"/>
+      <file href="thumbs/slide-8.png"/>
+      <file href="audio/c7d86bd9-6850-4871-b12a-9bee2df84177.wav"/>
+      <file href="thumbs/slide-9.png"/>
+      <file href="audio/79103b6c-8e32-4665-94dd-0ab4ec76f4c3.wav"/>
+      <file href="media/image11.png"/>
+      <file href="thumbs/slide-10.png"/>
+      <file href="audio/f371b27a-b7d5-4306-a837-ce043ceabda3.wav"/>
+      <file href="media/image5.png"/>
+      <file href="thumbs/slide-11.png"/>
+      <file href="audio/eb4cf98a-f5a0-42ed-a779-f41f2f11b375.wav"/>
+      <file href="thumbs/slide-12.png"/>
+      <file href="audio/49e5fa5f-95fc-4217-a39b-cdb10f0401c5.wav"/>
+      <file href="media/image7.jpg"/>
+      <file href="thumbs/slide-13.png"/>
+      <file href="audio/48349a53-d08e-42e2-8b07-ceb8bc52e958.wav"/>
+      <file href="media/image6.png"/>
+      <file href="thumbs/slide-14.png"/>
+      <file href="audio/01fa4a4f-372c-4750-951e-492e364c4833.wav"/>
+      <file href="thumbs/slide-15.png"/>
+      <file href="audio/26f7096a-ba35-483a-b3b9-c5fa9bfbd0ec.wav"/>
+      <file href="media/image12.png"/>
+      <file href="media/image18.png"/>
+      <file href="media/image21.png"/>
+      <file href="media/image15.png"/>
+      <file href="media/image19.png"/>
+      <file href="media/image9.png"/>
+      <file href="media/image10.png"/>
+      <file href="media/image16.png"/>
+      <file href="media/image14.png"/>
+      <file href="media/image8.png"/>
+      <file href="media/image17.png"/>
+      <file href="media/image20.png"/>
+      <file href="thumbs/slide-16.png"/>
+      <file href="audio/0e6bff51-a6d8-45e3-97b7-e95bfb63b2a3.wav"/>
+      <file href="thumbs/slide-17.png"/>
+      <file href="audio/f5d6b15d-6c2b-407f-bc05-26d8f64a7719.wav"/>
+      <file href="media/image13.jpg"/>
+    </resource>
+  </resources>
+</manifest>

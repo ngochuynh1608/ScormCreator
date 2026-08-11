@@ -1,0 +1,285 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #e8eef2;
+  --bg-deep: #d5e1ea;
+  --ink: #12263a;
+  --muted: #5f7b88;
+  --panel: #0f2a36;
+  --accent: #2bb673;
+  --accent-2: #7cc4e8;
+  --card: #ffffff;
+  --danger: #c45c26;
+  --ring: rgba(43, 182, 115, 0.35);
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --font-sans: var(--font-manrope);
+  --font-display: var(--font-sora);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse 80% 50% at 0% -10%, rgba(124, 196, 232, 0.35), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(43, 182, 115, 0.18), transparent 45%),
+    linear-gradient(180deg, #f2f7fa 0%, var(--bg) 45%, var(--bg-deep) 100%);
+  font-family: var(--font-manrope), "Segoe UI", sans-serif;
+}
+
+h1,
+h2,
+h3,
+.brand-font {
+  font-family: var(--font-sora), "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Landing hero — youthful energy without purple/glow clichés */
+.home-hero-bg {
+  background:
+    radial-gradient(ellipse 70% 55% at 12% 18%, rgba(255, 211, 106, 0.55), transparent 60%),
+    radial-gradient(ellipse 55% 50% at 88% 12%, rgba(255, 107, 129, 0.42), transparent 55%),
+    radial-gradient(ellipse 50% 45% at 70% 88%, rgba(56, 214, 176, 0.4), transparent 50%),
+    linear-gradient(145deg, #0b3d4a 0%, #146b62 42%, #1f8f6a 70%, #0f4c5c 100%);
+}
+
+.home-hero-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(2px);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+  animation: home-float 10s ease-in-out infinite;
+}
+
+.home-hero-orb-a {
+  width: 18rem;
+  height: 18rem;
+  left: -4rem;
+  top: 20%;
+  background: rgba(255, 211, 106, 0.35);
+}
+
+.home-hero-orb-b {
+  width: 14rem;
+  height: 14rem;
+  right: 8%;
+  top: 12%;
+  background: rgba(255, 107, 129, 0.32);
+  animation-delay: -3s;
+}
+
+.home-hero-orb-c {
+  width: 22rem;
+  height: 22rem;
+  right: -6rem;
+  bottom: -4rem;
+  background: rgba(56, 214, 176, 0.28);
+  animation-delay: -6s;
+}
+
+.home-hero-brand {
+  animation: home-rise 0.7s ease-out both;
+}
+
+.home-hero-line {
+  animation: home-rise 0.85s ease-out both;
+}
+
+.home-upload {
+  animation: home-rise 1s ease-out both;
+}
+
+.home-upload-glow {
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(
+    circle at 50% 40%,
+    rgba(255, 255, 255, 0.18),
+    transparent 55%
+  );
+  animation: home-shimmer 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes home-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-18px) scale(1.04);
+  }
+}
+
+@keyframes home-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes home-shimmer {
+  0%,
+  100% {
+    transform: translateX(-6%) translateY(0);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateX(6%) translateY(-4%);
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-orb,
+  .home-upload-glow,
+  .home-hero-brand,
+  .home-hero-line,
+  .home-upload {
+    animation: none !important;
+  }
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(43, 182, 115, 0.25);
+}
+
+/* Editor layout — fixed widths so Tailwind breakpoint quirks can't break the UI */
+.editor-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+.editor-slides {
+  width: 100%;
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+
+.editor-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.editor-narration {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.slide-thumb-card {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  border-radius: 0.75rem;
+  border: 2px solid transparent;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.65);
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.slide-thumb-card.is-active {
+  border-color: var(--accent);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 42, 54, 0.12);
+}
+
+.slide-thumb-card.is-hidden {
+  opacity: 0.45;
+}
+
+.slide-thumb-card img,
+.slide-thumb-card .slide-thumb-media {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  max-height: 124px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  background: #0f2a36;
+  margin-bottom: 0.5rem;
+}
+
+.slide-thumb-menu {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #1a2330;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
+.slide-thumb-menu:hover {
+  background: #f3f6f9;
+}
+
+@media (min-width: 1100px) {
+  .editor-workspace {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .editor-slides {
+    width: 232px;
+    max-width: 232px;
+    flex: 0 0 232px;
+    max-height: calc(100vh - 6rem);
+    overflow-y: auto;
+    position: sticky;
+    top: 1rem;
+    padding-right: 0.25rem;
+  }
+
+  .editor-main {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .editor-narration {
+    width: 380px;
+    max-width: 380px;
+    flex: 0 0 380px;
+  }
+}

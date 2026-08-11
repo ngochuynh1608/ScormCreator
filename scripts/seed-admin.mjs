@@ -2,8 +2,7 @@
  * Seed / reset default admin in SQLite (data/app.sqlite).
  * Email: admin@scormcreator.local  Password: Admin@123
  *
- * Usage: node --experimental-strip-types scripts/seed-admin.mjs
- *    or: npx tsx scripts/seed-admin.mjs
+ * Usage: node scripts/seed-admin.mjs
  */
 import fs from "fs";
 import path from "path";
@@ -69,7 +68,7 @@ async function main() {
   // Also update by email if a different id already exists.
   const rows = db
     .prepare(`SELECT id, data FROM docs WHERE collection = 'users'`)
-    .all() as { id: string; data: string }[];
+    .all();
   for (const row of rows) {
     const u = JSON.parse(row.data);
     if (

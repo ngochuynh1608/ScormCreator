@@ -43,6 +43,7 @@ import {
   ReplaceSlideMediaModal,
 } from "@/components/SlideModals";
 import { AuthForm } from "@/components/AuthForm";
+import { SlideStageView } from "@/components/SlideStageView";
 
 function fileUrl(
   projectId: string,
@@ -352,6 +353,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     queued: number;
   } | null>(null);
   const [cancellingTts, setCancellingTts] = useState(false);
+  const [designBusy, setDesignBusy] = useState(false);
   const [authGateOpen, setAuthGateOpen] = useState(false);
   const [claiming, setClaiming] = useState(false);
 
@@ -505,40 +507,80 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     [project],
   );
 
-  async function persist(next: Project) {
-    setSaving(true);
+  const projectRef = useRef<Project | null>(null);
+  projectRef.current = project;
+  const persistTimerRef = useRef<number | null>(null);
+  const persistChainRef = useRef<Promise<void>>(Promise.resolve());
+
+  async function persist(next: Project, options?: { immediate?: boolean }) {
     setProject(next);
-    try {
-      const res = await fetch(`/api/projects/${projectId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: next.title,
-          slides: next.slides,
-          scormSettings: next.scormSettings,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Lưu thất bại");
-      setProject(data.project);
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Lưu thất bại");
-    } finally {
-      setSaving(false);
+    projectRef.current = next;
+
+    const run = async () => {
+      setSaving(true);
+      try {
+        const latest = projectRef.current || next;
+        const res = await fetch(`/api/projects/${projectId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: latest.title,
+            slides: latest.slides,
+            scormSettings: latest.scormSettings,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Lưu thất bại");
+        // Keep local edits if user typed while request was in flight.
+        if (projectRef.current === latest) {
+          setProject(data.project);
+          projectRef.current = data.project;
+        }
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : "Lưu thất bại");
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    if (options?.immediate) {
+      if (persistTimerRef.current) {
+        window.clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+      persistChainRef.current = persistChainRef.current.then(run, run);
+      await persistChainRef.current;
+      return;
     }
+
+    if (persistTimerRef.current) {
+      window.clearTimeout(persistTimerRef.current);
+    }
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      persistChainRef.current = persistChainRef.current.then(run, run);
+    }, 700);
   }
 
   function updateSelected(mutator: (slide: Slide) => Slide) {
     if (!project || !selected) return;
-    const slides = project.slides.map((s) =>
+    const base = projectRef.current || project;
+    const slides = base.slides.map((s) =>
       s.id === selected.id ? mutator(s) : s,
     );
-    void persist({ ...project, slides });
+    void persist({ ...base, slides });
+  }
+
+  function updateSelectedDesign(patch: Partial<ContentSlide>) {
+    updateSelected((s) => {
+      if (s.type !== "content") return s;
+      return { ...s, ...patch };
+    });
   }
 
   function saveScormSettings(next: ScormPlayerSettings) {
     if (!project) return;
-    void persist({ ...project, scormSettings: next });
+    void persist({ ...project, scormSettings: next }, { immediate: true });
     setMessage("Đã lưu cài đặt SCORM.");
   }
 
@@ -552,7 +594,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       ...s,
       order: i,
     }));
-    void persist({ ...project, slides });
+    void persist({ ...project, slides }, { immediate: true });
   }
 
   async function addBlankSlideBelow(afterSlideId: string) {
@@ -581,7 +623,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       ...project,
       slides: slides.map((s, i) => ({ ...s, order: i })),
     };
-    await persist(next);
+    await persist(next, { immediate: true });
     setSelectedId(blank.id);
     setMessage("Đã thêm slide trống bên dưới.");
   }
@@ -684,7 +726,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
           : s,
       ),
     };
-    await persist(nextProject);
+    await persist(nextProject, { immediate: true });
 
     setTtsBusy(true);
     setTtsBulk(false);
@@ -1053,7 +1095,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
           null
         : selectedId;
     setDeleteTargetId(null);
-    await persist({ ...project, slides });
+    await persist({ ...project, slides }, { immediate: true });
     setSelectedId(nextSelected);
     setMessage("Đã xóa slide.");
   }
@@ -1086,6 +1128,32 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     }
   }
 
+  async function uploadOverlayImage(file: File): Promise<string | null> {
+    if (!selected || selected.type !== "content") return null;
+    setDesignBusy(true);
+    try {
+      const form = new FormData();
+      form.append("slideId", selected.id);
+      form.append("file", file);
+      form.append("asOverlay", "1");
+      const res = await fetch(`/api/projects/${projectId}/visual`, {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload ảnh chèn thất bại");
+      setProject(data.project);
+      return (data.relativePath as string) || null;
+    } catch (err) {
+      setMessage(
+        err instanceof Error ? err.message : "Upload ảnh chèn thất bại",
+      );
+      return null;
+    } finally {
+      setDesignBusy(false);
+    }
+  }
+
   if (!project) {
     return (
       <div className="flex min-h-screen items-center justify-center text-[var(--muted)]">
@@ -1105,7 +1173,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             className="brand-font mt-1 block w-full max-w-lg border-0 bg-transparent text-xl font-semibold outline-none"
             value={project.title}
             onChange={(e) => setProject({ ...project, title: e.target.value })}
-            onBlur={() => void persist(project)}
+            onBlur={() =>
+              void persist(projectRef.current || project, { immediate: true })
+            }
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1292,6 +1362,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
               onGenerateAll={() => requestGenerateAllTts()}
               onCancelTts={() => void cancelBackgroundTts()}
               cancellingTts={cancellingTts}
+              onDesignChange={updateSelectedDesign}
+              onUploadOverlayImage={uploadOverlayImage}
+              designBusy={designBusy}
               onUploadAudio={(file) => void uploadAudio(file)}
               onAssignExistingAudio={(path) => void assignExistingAudio(path)}
               onImportNarrationDocx={(file) => void importNarrationDocx(file)}
@@ -1527,23 +1600,13 @@ function ContentPanel({
     );
   }
 
-  const thumb = fileUrl(projectId, slide.thumbnailPath);
-  const video = fileUrl(projectId, slide.videoPath);
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-2xl bg-[#0f2a36]">
-        {video ? (
-          <video
-            key={video}
-            src={video}
-            controls
-            className="aspect-video w-full object-contain"
-          />
-        ) : thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumb} alt={slide.title} className="aspect-video w-full object-contain" />
-        ) : null}
-      </div>
+      <SlideStageView
+        projectId={projectId}
+        slide={slide}
+        className="rounded-2xl"
+      />
       <label className="block text-sm font-semibold">
         Tiêu đề
         <input

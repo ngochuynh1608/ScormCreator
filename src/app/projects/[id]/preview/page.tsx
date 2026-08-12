@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getQuizQuestions } from "@/lib/quiz";
 import { getProjectScormSettings } from "@/lib/scorm/settings";
 import type { Project, QuizQuestion, QuizSlide, Slide } from "@/lib/types";
+import { SlideStageView } from "@/components/SlideStageView";
+import type { SlideDesignLayer } from "@/lib/design/layers";
 
 function fileUrl(
   projectId: string,
@@ -34,6 +36,14 @@ export default function PreviewPage() {
     Record<string, { text: string; bad: boolean }>
   >({});
   const [audioDone, setAudioDone] = useState(true);
+  const [hotspotQ, setHotspotQ] = useState<Extract<
+    SlideDesignLayer,
+    { kind: "hotspot" }
+  > | null>(null);
+  const [hotspotFb, setHotspotFb] = useState<{
+    ok: boolean;
+    text: string;
+  } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioGateToken = useRef(0);
 
@@ -214,23 +224,16 @@ export default function PreviewPage() {
           {!slide ? (
             <p className="p-8 text-[#8aa0b2]">Không có slide.</p>
           ) : slide.type === "content" ? (
-            slide.videoPath ? (
-              <video
-                key={slide.videoPath}
-                src={fileUrl(projectId, slide.videoPath) || undefined}
-                poster={fileUrl(projectId, slide.thumbnailPath) || undefined}
-                controls
-                playsInline
-                className="h-full w-full object-contain"
-              />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={fileUrl(projectId, slide.thumbnailPath) || undefined}
-                alt={slide.title}
-                className="h-full w-full object-contain"
-              />
-            )
+            <SlideStageView
+              projectId={projectId}
+              slide={slide}
+              className="h-full w-full"
+              interactiveHotspots
+              onHotspot={(layer) => {
+                setHotspotFb(null);
+                setHotspotQ(layer);
+              }}
+            />
           ) : (
             <div className="space-y-3 p-8">
               <p className="text-xs font-bold uppercase tracking-wide text-[#8aa0b2]">
@@ -347,6 +350,96 @@ export default function PreviewPage() {
           </button>
         </div>
       </div>
+
+      {hotspotQ ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <form
+            className="w-full max-w-md space-y-3 rounded-2xl bg-white p-5 text-[#0f2a36] shadow-xl"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (hotspotFb) {
+                setHotspotQ(null);
+                setHotspotFb(null);
+                return;
+              }
+              const fd = new FormData(e.currentTarget);
+              const chosen = String(fd.get("opt") || "");
+              const correct = hotspotQ.question.options.find(
+                (o: { id: string; correct: boolean }) => o.correct,
+              );
+              const ok = Boolean(chosen && correct && chosen === correct.id);
+              if (ok) {
+                setScore((s) => s + (hotspotQ.question.points || 1));
+              }
+              setHotspotFb({
+                ok,
+                text: ok
+                  ? hotspotQ.question.feedbackCorrect || "Chính xác!"
+                  : hotspotQ.question.feedbackIncorrect ||
+                    "Chưa đúng, hãy thử lại.",
+              });
+            }}
+          >
+            <p className="text-sm font-semibold">{hotspotQ.question.question}</p>
+            {hotspotQ.question.options.map(
+              (o: { id: string; text: string }) => (
+              <label
+                key={o.id}
+                className={`flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-sm ${
+                  hotspotFb
+                    ? o.id ===
+                      hotspotQ.question.options.find(
+                        (x: { id: string; correct: boolean }) => x.correct,
+                      )?.id
+                      ? "bg-[#e8f8ef]"
+                      : "bg-[#f3f6f9] opacity-70"
+                    : "bg-[#f3f6f9]"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="opt"
+                  value={o.id}
+                  required
+                  disabled={Boolean(hotspotFb)}
+                />
+                {o.text}
+              </label>
+            ),
+            )}
+            {hotspotFb ? (
+              <p
+                className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+                  hotspotFb.ok
+                    ? "bg-[#e8f8ef] text-[#1f7a4d]"
+                    : "bg-[#fff4ef] text-[#c45c26]"
+                }`}
+              >
+                {hotspotFb.ok ? "Đúng — " : "Sai — "}
+                {hotspotFb.text}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setHotspotQ(null);
+                  setHotspotFb(null);
+                }}
+                className="rounded-full bg-[#e8eef5] px-4 py-2 text-sm font-semibold"
+              >
+                Đóng
+              </button>
+              <button
+                type="submit"
+                className="rounded-full bg-[#2bb673] px-4 py-2 text-sm font-bold text-[#083024]"
+              >
+                {hotspotFb ? "Xong" : "Gửi"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }

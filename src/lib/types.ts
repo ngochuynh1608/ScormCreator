@@ -31,6 +31,56 @@ export type ContentSlide = {
   audioUpdatedAt?: string | null;
   hidden: boolean;
   thumbnailPath: string | null;
+  /** Crop rectangle on background image (% of stage). */
+  imageCrop?: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null;
+  /**
+   * Design overlays: images, text, hotspot quizzes on top of background.
+   * Coordinates are % of the 16:9 stage.
+   */
+  designLayers?: Array<
+    | {
+        id: string;
+        kind: "image";
+        src: string;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        z: number;
+      }
+    | {
+        id: string;
+        kind: "text";
+        text: string;
+        fontSize: number;
+        color: string;
+        align: "left" | "center" | "right";
+        bold: boolean;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        z: number;
+      }
+    | {
+        id: string;
+        kind: "hotspot";
+        label: string;
+        /** Circular marker fill color. */
+        color?: string;
+        question: QuizQuestion;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        z: number;
+      }
+  >;
   /** Optional video that replaces the slide image in player/preview. */
   videoPath?: string | null;
   /** Empty slide waiting for media or quiz choice. */

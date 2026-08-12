@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ContentSlide, ScormPlayerSettings } from "@/lib/types";
 import { estimateDurationMs, formatSeconds } from "@/lib/tts/estimate";
 import { DEFAULT_SCORM_SETTINGS } from "@/lib/scorm/settings";
+import { SlideDesignPanel } from "@/components/SlideDesignPanel";
 
 type AudioMode = "ai" | "file";
 
@@ -46,6 +47,9 @@ type Props = {
   onGenerateAll: () => void;
   onCancelTts?: () => void;
   cancellingTts?: boolean;
+  onDesignChange: (patch: Partial<ContentSlide>) => void;
+  onUploadOverlayImage: (file: File) => Promise<string | null>;
+  designBusy?: boolean;
   onUploadAudio: (file: File) => void;
   onAssignExistingAudio: (audioPath: string) => void;
   onImportNarrationDocx: (file: File) => void;
@@ -79,6 +83,9 @@ export function NarrationPanel({
   onGenerateAll,
   onCancelTts,
   cancellingTts = false,
+  onDesignChange,
+  onUploadOverlayImage,
+  designBusy = false,
   onUploadAudio,
   onAssignExistingAudio,
   onImportNarrationDocx,
@@ -88,6 +95,7 @@ export function NarrationPanel({
   const [mode, setMode] = useState<AudioMode>("ai");
   const [script, setScript] = useState(slide.narrationScript || "");
   const [showSettings, setShowSettings] = useState(false);
+  const [showDesign, setShowDesign] = useState(false);
   const [draftSettings, setDraftSettings] = useState<ScormPlayerSettings>(
     scormSettings || DEFAULT_SCORM_SETTINGS,
   );
@@ -117,6 +125,7 @@ export function NarrationPanel({
 
   useEffect(() => {
     setScript(slide.narrationScript || "");
+    setShowDesign(false);
   }, [slide.id, slide.narrationScript]);
 
   useEffect(() => {
@@ -228,6 +237,7 @@ export function NarrationPanel({
             type="button"
             title="Cài đặt SCORM"
             onClick={() => {
+              setShowDesign(false);
               setDraftSettings(scormSettings || DEFAULT_SCORM_SETTINGS);
               setShowSettings((v) => !v);
             }}
@@ -237,10 +247,16 @@ export function NarrationPanel({
           </button>
           <button
             type="button"
-            title="Nhạc nền (sắp có)"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b7c8d] hover:bg-[#f0f3f6]"
+            title="Design — chỉnh ảnh slide"
+            onClick={() => {
+              setShowSettings(false);
+              setShowDesign((v) => !v);
+            }}
+            className={`flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f0f3f6] ${
+              showDesign ? "bg-[#e8f8ef] text-[#1f7a4d]" : "text-[#6b7c8d]"
+            }`}
           >
-            <MusicIcon />
+            <DesignIcon />
           </button>
           <button
             type="button"
@@ -429,6 +445,17 @@ export function NarrationPanel({
             </button>
           </div>
         </div>
+      ) : null}
+
+      {showDesign ? (
+        <SlideDesignPanel
+          projectId={projectId}
+          slide={slide}
+          busy={designBusy}
+          onChange={onDesignChange}
+          onUploadOverlayImage={onUploadOverlayImage}
+          onClose={() => setShowDesign(false)}
+        />
       ) : null}
 
       <div className="flex items-center justify-between gap-3 px-1">
@@ -740,18 +767,22 @@ function SettingsIcon() {
   );
 }
 
-function MusicIcon() {
+function DesignIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M9 18V6l12-2v12"
+        d="M12 3 4.5 7.5v9L12 21l7.5-4.5v-9L12 3Z"
         stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
+        strokeWidth="1.7"
         strokeLinejoin="round"
       />
-      <circle cx="6" cy="18" r="3" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="18" cy="16" r="3" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M12 12 4.5 7.5M12 12l7.5-4.5M12 12v9"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
     </svg>
   );
 }

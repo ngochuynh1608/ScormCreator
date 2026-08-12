@@ -67,6 +67,23 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   if (isImage) {
     if (!ext || !IMAGE_EXTS.has(ext)) ext = ".png";
+    const asOverlay = String(form.get("asOverlay") || "") === "1";
+    if (asOverlay) {
+      const fileName = `overlay-${slideId}-${Date.now()}${ext}`;
+      const abs = path.join(projectMediaDir(id), fileName);
+      await fs.mkdir(path.dirname(abs), { recursive: true });
+      await fs.writeFile(abs, buf);
+      if (!content.mediaFiles.includes(fileName)) {
+        content.mediaFiles = [...content.mediaFiles, fileName];
+      }
+      await saveProject(project);
+      return NextResponse.json({
+        project,
+        slide: content,
+        kind: "overlay",
+        relativePath: `media/${fileName}`,
+      });
+    }
     const fileName = `${slideId}${ext}`;
     const abs = path.join(projectThumbDir(id), fileName);
     await fs.mkdir(path.dirname(abs), { recursive: true });

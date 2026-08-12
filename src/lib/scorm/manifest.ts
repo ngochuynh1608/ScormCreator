@@ -139,6 +139,16 @@ export function serializeCourseJson(
             ? s.thumbnailPath.replace(/\\/g, "/")
             : null,
           video: s.videoPath ? s.videoPath.replace(/\\/g, "/") : null,
+          imageCrop: s.imageCrop || null,
+          designLayers: (s.designLayers || []).map((layer) => {
+            if (layer.kind === "image") {
+              return {
+                ...layer,
+                src: layer.src.replace(/\\/g, "/"),
+              };
+            }
+            return layer;
+          }),
         };
       }
       return {

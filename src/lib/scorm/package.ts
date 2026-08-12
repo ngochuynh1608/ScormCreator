@@ -83,6 +83,9 @@ export async function packageScormZip(
       slide.audioPath,
       slide.videoPath,
       ...(slide.mediaFiles || []).map((m) => `media/${m}`),
+      ...(slide.designLayers || [])
+        .filter((l) => l.kind === "image")
+        .map((l) => l.src),
     ].filter(Boolean) as string[];
 
     for (const relRaw of candidates) {

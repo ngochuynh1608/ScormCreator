@@ -507,26 +507,48 @@ export const PLAYER_JS = `(function () {
       escapeHtml(slide.bodyText || slide.narrationScript || "") +
       "</p></div>";
 
+    stage.innerHTML = "";
+    var wrap = document.createElement("div");
+    wrap.className = "design-stage";
+    wrap.style.cssText =
+      "position:relative;width:100%;height:100%;overflow:hidden;background:#0f2a36;";
+
     if (slide.video) {
       var video = document.createElement("video");
       video.src = resolveAsset(slide.video);
       video.controls = true;
       video.playsInline = true;
       video.setAttribute("playsinline", "true");
-      if (slide.thumbnail) {
-        video.poster = resolveAsset(slide.thumbnail);
-      }
+      video.style.cssText = "width:100%;height:100%;object-fit:contain;";
+      if (slide.thumbnail) video.poster = resolveAsset(slide.thumbnail);
       video.onerror = function () {
         stage.innerHTML =
           fallback +
           '<p style="color:#ffb4a2;margin-top:1rem">Không tải được video slide.</p>';
       };
-      stage.innerHTML = "";
-      stage.appendChild(video);
+      wrap.appendChild(video);
     } else if (slide.thumbnail) {
+      var bgBox = document.createElement("div");
+      bgBox.style.cssText =
+        "position:absolute;inset:0;overflow:hidden;";
       var img = document.createElement("img");
       img.src = resolveAsset(slide.thumbnail);
       img.alt = slide.title || "";
+      var crop = slide.imageCrop;
+      if (crop && crop.w > 0 && crop.h > 0) {
+        img.style.cssText =
+          "position:absolute;left:" +
+          (-crop.x / crop.w) * 100 +
+          "%;top:" +
+          (-crop.y / crop.h) * 100 +
+          "%;width:" +
+          (100 / crop.w) * 100 +
+          "%;height:" +
+          (100 / crop.h) * 100 +
+          "%;max-width:none;object-fit:fill;";
+      } else {
+        img.style.cssText = "width:100%;height:100%;object-fit:contain;";
+      }
       img.onerror = function () {
         stage.innerHTML =
           fallback +
@@ -534,11 +556,86 @@ export const PLAYER_JS = `(function () {
           "Hãy <b>giải nén toàn bộ ZIP</b> ra một thư mục, rồi mở file <b>index.html</b> trong thư mục đó " +
           "(không mở trực tiếp bên trong file ZIP). Thư mục <b>thumbs/</b> phải nằm cạnh index.html.</p>";
       };
-      stage.innerHTML = "";
-      stage.appendChild(img);
+      bgBox.appendChild(img);
+      wrap.appendChild(bgBox);
     } else {
-      stage.innerHTML = fallback;
+      wrap.innerHTML = fallback;
     }
+
+    var layers = (slide.designLayers || []).slice().sort(function (a, b) {
+      return (a.z || 0) - (b.z || 0);
+    });
+    layers.forEach(function (layer) {
+      var el = document.createElement("div");
+      if (layer.kind === "hotspot") {
+        var d = Math.min(layer.w, layer.h);
+        el.style.cssText =
+          "position:absolute;left:" +
+          layer.x +
+          "%;top:" +
+          layer.y +
+          "%;width:" +
+          d +
+          "%;height:auto;aspect-ratio:1;border-radius:999px;z-index:" +
+          ((layer.z || 0) + 5) +
+          ";";
+      } else {
+        el.style.cssText =
+          "position:absolute;left:" +
+          layer.x +
+          "%;top:" +
+          layer.y +
+          "%;width:" +
+          layer.w +
+          "%;height:" +
+          layer.h +
+          "%;z-index:" +
+          ((layer.z || 0) + 5) +
+          ";";
+      }
+      if (layer.kind === "image" && layer.src) {
+        var limg = document.createElement("img");
+        limg.src = resolveAsset(layer.src);
+        limg.style.cssText = "width:100%;height:100%;object-fit:contain;";
+        el.appendChild(limg);
+      } else if (layer.kind === "text") {
+        var t = document.createElement("div");
+        t.textContent = layer.text || "";
+        t.style.cssText =
+          "width:100%;height:100%;display:flex;align-items:center;justify-content:" +
+          (layer.align === "left"
+            ? "flex-start"
+            : layer.align === "right"
+              ? "flex-end"
+              : "center") +
+          ";color:" +
+          (layer.color || "#fff") +
+          ";font-weight:" +
+          (layer.bold ? "700" : "500") +
+          ";font-size:" +
+          Math.max(12, (layer.fontSize || 4) * 4) +
+          "px;padding:0 4px;overflow:hidden;text-align:" +
+          (layer.align || "center") +
+          ";";
+        el.appendChild(t);
+      } else if (layer.kind === "hotspot") {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = layer.label || "?";
+        var hsColor = layer.color || "#2f6fed";
+        btn.style.cssText =
+          "width:100%;height:100%;border:0;border-radius:999px;background:" +
+          hsColor +
+          ";color:#fff;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);outline:2px solid rgba(255,255,255,.7);";
+        btn.onclick = function () {
+          openHotspotQuiz(layer);
+        };
+        el.appendChild(btn);
+      }
+      wrap.appendChild(el);
+    });
+
+    stage.appendChild(wrap);
 
     if (slide.audio) {
       bindAudioGate(true);
@@ -549,6 +646,72 @@ export const PLAYER_JS = `(function () {
     } else {
       bindAudioGate(false);
     }
+  }
+
+  function openHotspotQuiz(layer) {
+    var q = layer.question || {};
+    var options = q.options || [];
+    var answered = false;
+    var html =
+      '<div style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);padding:1rem">' +
+      '<form id="hs-form" style="width:100%;max-width:28rem;background:#fff;color:#0f2a36;border-radius:1rem;padding:1.25rem">' +
+      "<p style='font-weight:600;margin:0 0 .75rem'>" +
+      escapeHtml(q.question || "Câu hỏi") +
+      "</p>";
+    options.forEach(function (o) {
+      html +=
+        "<label style='display:flex;gap:.5rem;align-items:center;margin:.35rem 0;padding:.5rem .75rem;background:#f3f6f9;border-radius:.75rem;cursor:pointer'>" +
+        '<input type="radio" name="hs" value="' +
+        escapeHtml(o.id) +
+        '" required />' +
+        "<span>" +
+        escapeHtml(o.text || "") +
+        "</span></label>";
+    });
+    html +=
+      '<p id="hs-fb" style="display:none;margin:.5rem 0 0;padding:.6rem .75rem;border-radius:.75rem;font-weight:600;font-size:.9rem"></p>' +
+      "<div style='display:flex;justify-content:flex-end;gap:.5rem;margin-top:.75rem'>" +
+      '<button type="button" id="hs-close" style="border:0;border-radius:999px;padding:.5rem 1rem;background:#e8eef5;font-weight:600">Đóng</button>' +
+      '<button type="submit" id="hs-submit" style="border:0;border-radius:999px;padding:.5rem 1rem;background:#2bb673;font-weight:700">Gửi</button>' +
+      "</div></form></div>";
+    var host = document.createElement("div");
+    host.innerHTML = html;
+    document.body.appendChild(host);
+    var fbEl = host.querySelector("#hs-fb");
+    var submitBtn = host.querySelector("#hs-submit");
+    host.querySelector("#hs-close").onclick = function () {
+      host.remove();
+    };
+    host.querySelector("#hs-form").onsubmit = function (ev) {
+      ev.preventDefault();
+      if (answered) {
+        host.remove();
+        return;
+      }
+      var chosen = (host.querySelector('input[name="hs"]:checked') || {}).value;
+      var correct = options.find(function (o) {
+        return o.correct;
+      });
+      var ok = !!(chosen && correct && chosen === correct.id);
+      if (ok) {
+        score += q.points || 1;
+        updateChrome();
+      }
+      answered = true;
+      var inputs = host.querySelectorAll('input[name="hs"]');
+      for (var i = 0; i < inputs.length; i++) inputs[i].disabled = true;
+      if (fbEl) {
+        fbEl.style.display = "block";
+        fbEl.style.background = ok ? "#e8f8ef" : "#fff4ef";
+        fbEl.style.color = ok ? "#1f7a4d" : "#c45c26";
+        fbEl.textContent =
+          (ok ? "Đúng — " : "Sai — ") +
+          (ok
+            ? q.feedbackCorrect || "Chính xác!"
+            : q.feedbackIncorrect || "Chưa đúng, hãy thử lại.");
+      }
+      if (submitBtn) submitBtn.textContent = "Xong";
+    };
   }
 
   function submitQuizQuestion(slide, question) {

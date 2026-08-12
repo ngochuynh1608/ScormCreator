@@ -53,6 +53,29 @@ export async function ensureProjectDirs(projectId: string) {
   await Promise.all(dirs.map((d) => fs.mkdir(d, { recursive: true })));
 }
 
+/** Serialize writes per absolute path (prevents interleaved JSON corruption). */
+const writeLocks = new Map<string, Promise<void>>();
+
+async function withWriteLock<T>(filePath: string, fn: () => Promise<T>): Promise<T> {
+  const key = path.resolve(filePath);
+  const prev = writeLocks.get(key) || Promise.resolve();
+  let release!: () => void;
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
+  writeLocks.set(
+    key,
+    prev.then(() => gate).catch(() => gate),
+  );
+  await prev.catch(() => undefined);
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (writeLocks.get(key) === gate) writeLocks.delete(key);
+  }
+}
+
 export async function readJson<T>(filePath: string): Promise<T | null> {
   try {
     const raw = await fs.readFile(filePath, "utf8");
@@ -62,9 +85,29 @@ export async function readJson<T>(filePath: string): Promise<T | null> {
   }
 }
 
+/**
+ * Atomic JSON write: temp file + rename.
+ * Avoids truncated / interleaved meta.json that made projects "disappear".
+ */
 export async function writeJson(filePath: string, data: unknown) {
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf8");
+  await withWriteLock(filePath, async () => {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    const payload = `${JSON.stringify(data, null, 2)}\n`;
+    const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    try {
+      await fs.writeFile(tmp, payload, "utf8");
+      try {
+        await fs.rename(tmp, filePath);
+      } catch {
+        // Windows cannot rename over an existing file.
+        await fs.copyFile(tmp, filePath);
+        await fs.unlink(tmp).catch(() => undefined);
+      }
+    } catch (err) {
+      await fs.unlink(tmp).catch(() => undefined);
+      throw err;
+    }
+  });
 }
 
 export function publicFileUrl(projectId: string, relativePath: string) {

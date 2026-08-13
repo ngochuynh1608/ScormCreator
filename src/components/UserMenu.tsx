@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type UserMenuUser = {
   id: string;
@@ -29,30 +30,144 @@ export function UserMenu({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
+    null,
+  );
   const rootRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  function placeMenu() {
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setMenuPos({
+      top: rect.bottom + 8,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  }
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return;
+    }
+    placeMenu();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
+
     function onPointerDown(e: PointerEvent) {
-      if (rootRef.current?.contains(e.target as Node)) return;
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t)) return;
+      if (menuRef.current?.contains(t)) return;
       setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
+    function onReposition() {
+      placeMenu();
+    }
+
     document.addEventListener("pointerdown", onPointerDown, true);
     window.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
     };
   }, [open]);
 
   const isDark = tone === "dark";
 
+  const menu =
+    open && menuPos
+      ? createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{ top: menuPos.top, right: menuPos.right }}
+            className={`fixed z-[100] w-56 overflow-hidden rounded-2xl border py-1 shadow-lg ${
+              isDark
+                ? "border-white/15 bg-[#123040] text-[#edf3f7]"
+                : "border-[#dfe7ef] bg-white text-[#0f2a36]"
+            }`}
+          >
+            <div
+              className={`border-b px-4 py-3 ${
+                isDark ? "border-white/10" : "border-[#eef2f6]"
+              }`}
+            >
+              <p className="truncate text-sm font-semibold">{user.name}</p>
+              <p
+                className={`truncate text-xs ${
+                  isDark ? "text-white/65" : "text-[#5b6b7c]"
+                }`}
+              >
+                {user.email}
+              </p>
+            </div>
+            <Link
+              role="menuitem"
+              href="/account/profile"
+              className={`block px-4 py-2.5 text-sm font-semibold ${
+                isDark ? "hover:bg-white/10" : "hover:bg-[#f3f7fa]"
+              }`}
+              onClick={() => setOpen(false)}
+            >
+              Hồ sơ
+            </Link>
+            <Link
+              role="menuitem"
+              href="/account/subscription"
+              className={`block px-4 py-2.5 text-sm font-semibold ${
+                isDark ? "hover:bg-white/10" : "hover:bg-[#f3f7fa]"
+              }`}
+              onClick={() => setOpen(false)}
+            >
+              Gói đăng ký
+            </Link>
+            <Link
+              role="menuitem"
+              href="/account/payments"
+              className={`block px-4 py-2.5 text-sm font-semibold ${
+                isDark ? "hover:bg-white/10" : "hover:bg-[#f3f7fa]"
+              }`}
+              onClick={() => setOpen(false)}
+            >
+              Lịch sử thanh toán
+            </Link>
+            <button
+              type="button"
+              role="menuitem"
+              className={`block w-full border-t px-4 py-2.5 text-left text-sm font-semibold ${
+                isDark
+                  ? "border-white/10 text-[#ffb4a2] hover:bg-white/10"
+                  : "border-[#eef2f6] text-[#c45c26] hover:bg-[#fff4ef]"
+              }`}
+              onClick={() => {
+                setOpen(false);
+                void fetch("/api/auth/logout", { method: "POST" }).then(() => {
+                  router.push("/");
+                  router.refresh();
+                });
+              }}
+            >
+              Đăng xuất
+            </button>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative z-[60]">
       <button
+        ref={btnRef}
         type="button"
         title={user.name || user.email}
         aria-haspopup="menu"
@@ -66,80 +181,7 @@ export function UserMenu({
       >
         {initials(user.name, user.email)}
       </button>
-
-      {open ? (
-        <div
-          role="menu"
-          className={`absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border py-1 shadow-lg ${
-            isDark
-              ? "border-white/15 bg-[#123040] text-[#edf3f7]"
-              : "border-[#dfe7ef] bg-white text-[#0f2a36]"
-          }`}
-        >
-          <div
-            className={`border-b px-4 py-3 ${
-              isDark ? "border-white/10" : "border-[#eef2f6]"
-            }`}
-          >
-            <p className="truncate text-sm font-semibold">{user.name}</p>
-            <p
-              className={`truncate text-xs ${
-                isDark ? "text-white/65" : "text-[#5b6b7c]"
-              }`}
-            >
-              {user.email}
-            </p>
-          </div>
-          <Link
-            role="menuitem"
-            href="/account/profile"
-            className={`block px-4 py-2.5 text-sm font-semibold ${
-              isDark ? "hover:bg-white/10" : "hover:bg-[#f3f7fa]"
-            }`}
-            onClick={() => setOpen(false)}
-          >
-            Hồ sơ
-          </Link>
-          <Link
-            role="menuitem"
-            href="/account/subscription"
-            className={`block px-4 py-2.5 text-sm font-semibold ${
-              isDark ? "hover:bg-white/10" : "hover:bg-[#f3f7fa]"
-            }`}
-            onClick={() => setOpen(false)}
-          >
-            Gói đăng ký
-          </Link>
-          <Link
-            role="menuitem"
-            href="/account/payments"
-            className={`block px-4 py-2.5 text-sm font-semibold ${
-              isDark ? "hover:bg-white/10" : "hover:bg-[#f3f7fa]"
-            }`}
-            onClick={() => setOpen(false)}
-          >
-            Lịch sử thanh toán
-          </Link>
-          <button
-            type="button"
-            role="menuitem"
-            className={`block w-full border-t px-4 py-2.5 text-left text-sm font-semibold ${
-              isDark
-                ? "border-white/10 text-[#ffb4a2] hover:bg-white/10"
-                : "border-[#eef2f6] text-[#c45c26] hover:bg-[#fff4ef]"
-            }`}
-            onClick={() => {
-              setOpen(false);
-              void fetch("/api/auth/logout", { method: "POST" }).then(() => {
-                router.push("/");
-                router.refresh();
-              });
-            }}
-          >
-            Đăng xuất
-          </button>
-        </div>
-      ) : null}
+      {menu}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { findUserById, toPublicUser } from "@/lib/auth/users";
 const NAV = [
   { href: "/account/profile", label: "Hồ sơ" },
   { href: "/account/subscription", label: "Gói đăng ký" },
-  { href: "/account/payments", label: "Lịch sử thanh toán" },
+  { href: "/account/payments", label: "Nạp credit" },
 ];
 
 export default async function AccountLayout({
@@ -26,7 +26,7 @@ export default async function AccountLayout({
 
   return (
     <main className="min-h-screen bg-[#f3f6f9]">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#c9d8e2] bg-white/75 px-4 py-4 backdrop-blur md:px-8">
+      <header className="relative z-50 flex flex-wrap items-center justify-between gap-3 border-b border-[#c9d8e2] bg-white/75 px-4 py-4 backdrop-blur md:px-8">
         <div>
           <Link
             href={homeHref}

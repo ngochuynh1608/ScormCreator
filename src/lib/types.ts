@@ -155,6 +155,10 @@ export type TtsJob = {
   pitch: number;
   modelId?: string;
   provider?: "everai" | "mock" | "auto";
+  /** Owner billed for this EverAI job (reserved until done/error/cancelled). */
+  ownerId?: string;
+  /** Estimated credits held while queued/running. */
+  estimatedCredits?: number;
   createdAt: string;
   updatedAt: string;
   errorMessage?: string;

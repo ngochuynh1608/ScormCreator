@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { PublicUser, SubscriptionPlan } from "@/lib/auth/types";
+import type { CreditSnapshot } from "@/lib/credits/types";
 
 type Draft = {
   name: string;
@@ -31,6 +32,10 @@ export default function AdminUsersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [credits, setCredits] = useState<Record<string, CreditSnapshot>>({});
+  const [grantUser, setGrantUser] = useState<PublicUser | null>(null);
+  const [grantAmount, setGrantAmount] = useState("100");
+  const [grantNote, setGrantNote] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,6 +50,7 @@ export default function AdminUsersPage() {
       if (!uRes.ok) throw new Error(uData.error || "Không tải được users");
       if (!pRes.ok) throw new Error(pData.error || "Không tải được gói");
       setUsers(uData.users || []);
+      setCredits(uData.credits || {});
       setPlans(pData.plans || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lỗi tải dữ liệu");
@@ -180,6 +186,40 @@ export default function AdminUsersPage() {
     });
   }
 
+  async function grant() {
+    if (!grantUser) return;
+    setBusyId(grantUser.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "grant",
+          userId: grantUser.id,
+          amount: Number(grantAmount),
+          note: grantNote.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Cộng credit thất bại");
+      if (data.wallet) {
+        setCredits((prev) => ({ ...prev, [grantUser.id]: data.wallet }));
+      }
+      setMessage(
+        `Đã cộng ${Number(grantAmount).toLocaleString("vi-VN")} credit cho ${grantUser.email}.`,
+      );
+      setGrantUser(null);
+      setGrantAmount("100");
+      setGrantNote("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Cộng credit thất bại");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <section className="admin-panel">
       <div className="admin-panel-head">
@@ -302,6 +342,7 @@ export default function AdminUsersPage() {
               <th>Email</th>
               <th>Role</th>
               <th>Gói</th>
+              <th>Credit còn</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
             </tr>
@@ -322,7 +363,17 @@ export default function AdminUsersPage() {
                     {u.role}
                   </span>
                 </td>
-                <td className="admin-cell-muted">{planName(u.planId)}</td>
+                <td className="admin-cell-muted">
+                  {planName(u.planId)}
+                  {u.planExpiresAt ? (
+                    <span className="block text-xs">
+                      Hết hạn {new Date(u.planExpiresAt).toLocaleDateString("vi-VN")}
+                    </span>
+                  ) : null}
+                </td>
+                <td className="admin-cell-muted">
+                  {(credits[u.id]?.available ?? 0).toLocaleString("vi-VN")}
+                </td>
                 <td>
                   {u.locked ? (
                     <span className="admin-badge admin-badge-warn">Đã khóa</span>
@@ -332,6 +383,18 @@ export default function AdminUsersPage() {
                 </td>
                 <td>
                   <div className="admin-row-actions">
+                    <button
+                      type="button"
+                      disabled={busyId === u.id}
+                      onClick={() => {
+                        setGrantUser(u);
+                        setGrantAmount("100");
+                        setGrantNote("");
+                      }}
+                      className="admin-link"
+                    >
+                      Cộng credit
+                    </button>
                     <button
                       type="button"
                       disabled={busyId === u.id}
@@ -363,6 +426,65 @@ export default function AdminUsersPage() {
           </tbody>
         </table>
       </div>
+
+      {grantUser ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[#0f2a36]/45 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !busyId && setGrantUser(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="brand-font text-xl font-semibold text-[#0f2a36]">
+              Cộng credit
+            </h2>
+            <p className="mt-1 text-sm text-[#5b6b7c]">
+              {grantUser.name} · {grantUser.email}. Hiện còn{" "}
+              {(credits[grantUser.id]?.available ?? 0).toLocaleString("vi-VN")}{" "}
+              credit.
+            </p>
+            <label className="admin-label mt-4">
+              Số credit
+              <input
+                type="text"
+                value={grantAmount}
+                onChange={(e) => setGrantAmount(e.target.value)}
+                className="admin-input"
+              />
+            </label>
+            <label className="admin-label mt-3">
+              Ghi chú (tuỳ chọn)
+              <input
+                type="text"
+                value={grantNote}
+                onChange={(e) => setGrantNote(e.target.value)}
+                className="admin-input"
+              />
+            </label>
+            <div className="admin-form-actions mt-4">
+              <button
+                type="button"
+                disabled={Boolean(busyId)}
+                onClick={() => void grant()}
+                className="admin-btn-dark"
+              >
+                {busyId ? "Đang cộng…" : "Cộng credit"}
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(busyId)}
+                onClick={() => setGrantUser(null)}
+                className="admin-btn-muted"
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

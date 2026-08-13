@@ -29,6 +29,10 @@ export const COLLECTIONS = {
   usage: "usage",
   settings: "settings",
   jobs: "jobs",
+  creditPacks: "creditPacks",
+  creditOrders: "creditOrders",
+  creditTransactions: "creditTransactions",
+  planOrders: "planOrders",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

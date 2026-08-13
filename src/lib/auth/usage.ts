@@ -6,6 +6,8 @@ export type UserUsage = {
   userId: string;
   /** EverAI credits consumed (accumulated). */
   creditsUsed: number;
+  /** Credits from purchases + admin grants (stacked on the plan limit). */
+  extraCredits: number;
   /** Learners / students currently counted toward the plan. */
   studentsUsed: number;
   updatedAt: string;
@@ -16,8 +18,20 @@ function normalize(row: UserUsage): UserUsage {
     id: row.id || row.userId,
     userId: row.userId || row.id,
     creditsUsed: Math.max(0, Math.floor(row.creditsUsed || 0)),
+    extraCredits: Math.max(0, Math.floor(row.extraCredits || 0)),
     studentsUsed: Math.max(0, Math.floor(row.studentsUsed || 0)),
     updatedAt: row.updatedAt || new Date().toISOString(),
+  };
+}
+
+function emptyUsage(userId: string): UserUsage {
+  return {
+    id: userId,
+    userId,
+    creditsUsed: 0,
+    extraCredits: 0,
+    studentsUsed: 0,
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -25,13 +39,14 @@ export async function getUserUsage(userId: string): Promise<UserUsage> {
   const store = await getDocumentStore();
   const found = await store.get<UserUsage>(COLLECTIONS.usage, userId);
   if (found) return normalize(found);
-  return {
-    id: userId,
-    userId,
-    creditsUsed: 0,
-    studentsUsed: 0,
-    updatedAt: new Date().toISOString(),
-  };
+  return emptyUsage(userId);
+}
+
+async function putUsage(next: UserUsage): Promise<UserUsage> {
+  const store = await getDocumentStore();
+  const row = normalize({ ...next, updatedAt: new Date().toISOString() });
+  await store.put(COLLECTIONS.usage, row);
+  return row;
 }
 
 export async function addCreditsUsed(
@@ -41,15 +56,23 @@ export async function addCreditsUsed(
   const add = Math.max(0, Math.ceil(amount));
   if (!userId || add === 0) return getUserUsage(userId);
 
-  const store = await getDocumentStore();
   const current = await getUserUsage(userId);
-  const next: UserUsage = {
-    id: userId,
-    userId,
+  return putUsage({
+    ...current,
     creditsUsed: current.creditsUsed + add,
-    studentsUsed: current.studentsUsed,
-    updatedAt: new Date().toISOString(),
-  };
-  await store.put(COLLECTIONS.usage, next);
-  return next;
+  });
+}
+
+export async function addExtraCredits(
+  userId: string,
+  amount: number,
+): Promise<UserUsage> {
+  const add = Math.max(0, Math.ceil(amount));
+  if (!userId || add === 0) return getUserUsage(userId);
+
+  const current = await getUserUsage(userId);
+  return putUsage({
+    ...current,
+    extraCredits: current.extraCredits + add,
+  });
 }

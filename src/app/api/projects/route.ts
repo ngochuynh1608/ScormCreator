@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { requireSession } from "@/lib/auth/guards";
+import {
+  assertCanCreatePresentation,
+  presentationLimitResponse,
+} from "@/lib/auth/quota";
 import { listProjects, saveProject } from "@/lib/db";
 import { ensureProjectDirs } from "@/lib/storage";
 import type { ContentSlide, Project } from "@/lib/types";
@@ -18,6 +22,14 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const auth = await requireSession();
   if (auth.error) return auth.error;
+
+  try {
+    await assertCanCreatePresentation(auth.session.userId);
+  } catch (err) {
+    const limited = presentationLimitResponse(err);
+    if (limited) return limited;
+    throw err;
+  }
 
   let title = "Bài giảng mới";
   try {

@@ -36,6 +36,7 @@ import {
   type TtsModelOption,
   type TtsVoiceOption,
 } from "@/components/NarrationPanel";
+import { estimateCredits } from "@/lib/tts/voices";
 import {
   ConfirmDeleteSlideModal,
   ConfirmGenerateAllAudioModal,
@@ -354,8 +355,26 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   } | null>(null);
   const [cancellingTts, setCancellingTts] = useState(false);
   const [designBusy, setDesignBusy] = useState(false);
+  const [creditGuest, setCreditGuest] = useState(false);
+  const [creditsAvailable, setCreditsAvailable] = useState<number | null>(null);
+  const [generateAllEstimate, setGenerateAllEstimate] = useState(0);
   const [authGateOpen, setAuthGateOpen] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [slidesDrawerOpen, setSlidesDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!slidesDrawerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setSlidesDrawerOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [slidesDrawerOpen]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -380,6 +399,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       setProject(data.project);
       setAuthGateOpen(false);
       setMessage("Đã lưu trình chiếu vào tài khoản của bạn.");
+      await loadCredits();
     } catch (err) {
       setNotice({
         title: "Chưa lưu được vào tài khoản",
@@ -402,10 +422,30 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     if (data.defaultModelId) setModelId(data.defaultModelId);
   }, []);
 
+  const loadCredits = useCallback(async () => {
+    try {
+      const res = await fetch("/api/credits/wallet");
+      const data = await res.json();
+      if (!res.ok) return;
+      if (data.guest) {
+        setCreditGuest(true);
+        setCreditsAvailable(null);
+        return;
+      }
+      setCreditGuest(false);
+      setCreditsAvailable(
+        typeof data.wallet?.available === "number" ? data.wallet.available : 0,
+      );
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     void load().catch((e) => setMessage(e.message));
     void loadTtsSettings().catch((e) => setMessage(e.message));
-  }, [load, loadTtsSettings]);
+    void loadCredits();
+  }, [load, loadTtsSettings, loadCredits]);
 
   const refreshBackgroundTts = useCallback(async () => {
     try {
@@ -756,6 +796,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         }),
       });
       const data = await res.json();
+      if (res.status === 401) {
+        setAuthGateOpen(true);
+      }
       if (!res.ok) throw new Error(data.error || "TTS thất bại");
       if (data.jobs) {
         throw new Error("Phản hồi TTS không hợp lệ (đã tạo hàng loạt). Thử lại.");
@@ -790,6 +833,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         });
       }
       await load();
+      await loadCredits();
       setMessage("Đã gắn audio EverAI cho slide hiện tại.");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "TTS thất bại");
@@ -810,6 +854,15 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       });
       return;
     }
+    if (creditGuest) {
+      setAuthGateOpen(true);
+      setNotice({
+        title: "Cần đăng nhập",
+        message:
+          "Đăng nhập và lưu dự án vào tài khoản để tạo audio AI. Mỗi lần tạo sẽ trừ credit.",
+      });
+      return;
+    }
     const targets = project.slides.filter(
       (s) =>
         s.type === "content" &&
@@ -824,7 +877,24 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       });
       return;
     }
+    const estimate = targets.reduce(
+      (sum, s) =>
+        sum +
+        estimateCredits(
+          (s.type === "content" ? s.narrationScript : "").trim().length,
+          voiceCode,
+        ),
+      0,
+    );
+    if (creditsAvailable != null && creditsAvailable < estimate) {
+      setNotice({
+        title: "Không đủ credit",
+        message: `Cần khoảng ${estimate.toLocaleString("vi-VN")} credit, bạn còn ${creditsAvailable.toLocaleString("vi-VN")}. Nạp thêm tại Tài khoản → Thanh toán.`,
+      });
+      return;
+    }
     setGenerateAllCount(targets.length);
+    setGenerateAllEstimate(estimate);
     setGenerateAllOpen(true);
   }
 
@@ -863,6 +933,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         }),
       });
       const data = await res.json();
+      if (res.status === 401) {
+        setAuthGateOpen(true);
+      }
       if (!res.ok) throw new Error(data.error || "TTS hàng loạt thất bại");
       const jobs = (data.jobs || []) as { id: string; slideId: string }[];
 
@@ -890,6 +963,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       }
 
       await load();
+      await loadCredits();
       if (failed === 0) {
         setNotice({
           title: "Tạo audio hoàn tất",
@@ -1314,7 +1388,51 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       ) : null}
 
       <div className="editor-workspace">
-        <aside className="editor-slides space-y-2">
+        <button
+          type="button"
+          className="editor-slides-toggle"
+          aria-expanded={slidesDrawerOpen}
+          aria-controls="editor-slides-panel"
+          onClick={() => setSlidesDrawerOpen(true)}
+        >
+          <SlidesRailIcon />
+          <span>Slide</span>
+          <span className="editor-slides-toggle-count">
+            {project.slides.length}
+          </span>
+        </button>
+
+        {slidesDrawerOpen ? (
+          <button
+            type="button"
+            className="editor-slides-backdrop"
+            aria-label="Đóng danh sách slide"
+            onClick={() => setSlidesDrawerOpen(false)}
+          />
+        ) : null}
+
+        <aside
+          id="editor-slides-panel"
+          className={`editor-slides space-y-2 ${
+            slidesDrawerOpen ? "is-open" : ""
+          }`}
+        >
+          <div className="editor-slides-drawer-head">
+            <div>
+              <p className="editor-slides-drawer-title">Danh sách slide</p>
+              <p className="editor-slides-drawer-sub">
+                {project.slides.length} slide
+              </p>
+            </div>
+            <button
+              type="button"
+              className="editor-slides-drawer-close"
+              aria-label="Đóng"
+              onClick={() => setSlidesDrawerOpen(false)}
+            >
+              Đóng
+            </button>
+          </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext
               items={project.slides.map((s) => s.id)}
@@ -1329,7 +1447,10 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                     index={index}
                     active={slide.id === selectedId}
                     ttsStatus={ttsSlideStatus[slide.id] || null}
-                    onSelect={() => setSelectedId(slide.id)}
+                    onSelect={() => {
+                      setSelectedId(slide.id);
+                      setSlidesDrawerOpen(false);
+                    }}
                     onRequestDelete={() => {
                       setReplaceTargetId(null);
                       setDeleteTargetId(slide.id);
@@ -1430,6 +1551,8 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                 selected.audioPath,
                 selected.audioUpdatedAt || selected.audioDurationMs,
               )}
+              creditGuest={creditGuest}
+              creditsAvailable={creditsAvailable}
             />
           ) : (
             <aside className="flex min-h-[320px] items-center justify-center rounded-[28px] bg-[#eef1f4] p-6 text-center text-sm text-[#6b7c8d]">
@@ -1451,6 +1574,8 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         open={generateAllOpen && !ttsBusy}
         slideCount={generateAllCount}
         voiceLabel={generateAllVoiceLabel}
+        creditEstimate={generateAllEstimate}
+        creditsAvailable={creditsAvailable}
         onCancel={() => setGenerateAllOpen(false)}
         onConfirm={() => {
           setGenerateAllOpen(false);
@@ -1987,6 +2112,40 @@ function BackArrowIcon() {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SlidesRailIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="4"
+        rx="1.2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <rect
+        x="4"
+        y="11"
+        width="16"
+        height="4"
+        rx="1.2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <rect
+        x="4"
+        y="17"
+        width="11"
+        height="3"
+        rx="1"
+        stroke="currentColor"
+        strokeWidth="1.8"
       />
     </svg>
   );

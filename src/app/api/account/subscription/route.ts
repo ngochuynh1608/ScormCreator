@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/guards";
-import { listPlans, getPlan } from "@/lib/auth/plans";
+import { listPlans, getPlan, resolvePlanForUser } from "@/lib/auth/plans";
 import { getUserUsage } from "@/lib/auth/usage";
 import {
   findUserById,
@@ -9,23 +9,32 @@ import {
   updateUser,
 } from "@/lib/auth/users";
 import { listProjects } from "@/lib/db";
-import type { SubscriptionPlan } from "@/lib/auth/types";
+import { getCreditSnapshot } from "@/lib/credits/wallet";
+import { getCreditBankSettings } from "@/lib/credits/settings";
+import { listPlanOrders } from "@/lib/subscription/orders";
+import type { CreditSnapshot } from "@/lib/credits/types";
 
 export const runtime = "nodejs";
 
-async function resolvePlanForUser(
-  planId: string | null | undefined,
-): Promise<SubscriptionPlan> {
-  if (planId) {
-    const plan = await getPlan(planId);
-    if (plan) return plan;
-  }
-  const plans = await listPlans();
-  const free = plans.find((p) => p.monthlyPrice === 0) || plans[0];
-  if (!free) {
-    throw new Error("Chưa có gói đăng ký nào được cấu hình.");
-  }
-  return free;
+function usagePayload(
+  presentationsUsed: number,
+  presentationsLimit: number,
+  studentsUsed: number,
+  studentsLimit: number,
+  credits: CreditSnapshot,
+) {
+  return {
+    presentationsUsed,
+    presentationsLimit,
+    creditsUsed: credits.creditsUsed,
+    creditsLimit: credits.planLimit,
+    creditsExtra: credits.extraCredits,
+    creditsReserved: credits.reserved,
+    creditsAvailable: credits.available,
+    creditsCeiling: credits.ceiling,
+    studentsUsed,
+    studentsLimit,
+  };
 }
 
 export async function GET() {
@@ -38,32 +47,50 @@ export async function GET() {
   }
 
   const plans = await listPlans();
-  let plan = await resolvePlanForUser(user.planId);
-  // Persist default free plan if unset
+  let plan = await resolvePlanForUser(user.planId, {
+    expiresAt: user.planExpiresAt,
+    userId: user.id,
+  });
+  const fresh = await findUserById(user.id);
+  if (fresh) {
+    user.planId = fresh.planId;
+    user.planExpiresAt = fresh.planExpiresAt;
+  }
   if (!user.planId || user.planId !== plan.id) {
     if (!user.planId) {
-      await updateUser(user.id, { planId: plan.id });
+      await updateUser(user.id, { planId: plan.id, planExpiresAt: null });
       user.planId = plan.id;
+      user.planExpiresAt = null;
     } else {
       plan = (await getPlan(user.planId)) || plan;
     }
   }
 
   const usage = await getUserUsage(user.id);
+  const credits = await getCreditSnapshot(user.id);
   const projects = await listProjects(user.id);
+  const bank = await getCreditBankSettings();
+  const planOrders = await listPlanOrders({ userId: user.id });
 
   return NextResponse.json({
     user: toPublicUser(user),
     plan,
     plans,
-    usage: {
-      presentationsUsed: projects.length,
-      presentationsLimit: plan.maxPresentations,
-      creditsUsed: usage.creditsUsed,
-      creditsLimit: plan.everaiCredits,
-      studentsUsed: usage.studentsUsed,
-      studentsLimit: plan.maxStudents,
+    planExpiresAt: user.planExpiresAt || null,
+    bank: {
+      bankName: bank.bankName,
+      accountNumber: bank.accountNumber,
+      accountName: bank.accountName,
+      configured: Boolean(bank.accountNumber && bank.accountName),
     },
+    planOrders,
+    usage: usagePayload(
+      projects.length,
+      plan.maxPresentations,
+      usage.studentsUsed,
+      plan.maxStudents,
+      credits,
+    ),
   });
 }
 
@@ -71,7 +98,7 @@ const changeSchema = z.object({
   planId: z.string().min(1),
 });
 
-/** Switch plan without payment (payment gateway will be added later). */
+/** Immediate switch is only allowed for the free plan. Paid plans go through transfer orders. */
 export async function POST(req: NextRequest) {
   const auth = await requireSession();
   if (auth.error) return auth.error;
@@ -82,8 +109,21 @@ export async function POST(req: NextRequest) {
     if (!plan) {
       return NextResponse.json({ error: "Không tìm thấy gói." }, { status: 404 });
     }
-    const user = await updateUser(auth.session.userId, { planId: plan.id });
+    if (plan.monthlyPrice > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Gói trả phí cần chuyển khoản và chờ admin xác nhận. Dùng luồng nâng cấp gói.",
+        },
+        { status: 400 },
+      );
+    }
+    const user = await updateUser(auth.session.userId, {
+      planId: plan.id,
+      planExpiresAt: null,
+    });
     const usage = await getUserUsage(user.id);
+    const credits = await getCreditSnapshot(user.id);
     const projects = await listProjects(user.id);
     const plans = await listPlans();
 
@@ -91,18 +131,15 @@ export async function POST(req: NextRequest) {
       user: toPublicUser(user),
       plan,
       plans,
-      usage: {
-        presentationsUsed: projects.length,
-        presentationsLimit: plan.maxPresentations,
-        creditsUsed: usage.creditsUsed,
-        creditsLimit: plan.everaiCredits,
-        studentsUsed: usage.studentsUsed,
-        studentsLimit: plan.maxStudents,
-      },
-      notice:
-        plan.monthlyPrice === 0
-          ? "Đã chuyển sang gói miễn phí."
-          : "Đã chọn gói. Thanh toán sẽ được bổ sung sau — gói được kích hoạt ngay.",
+      planExpiresAt: null,
+      usage: usagePayload(
+        projects.length,
+        plan.maxPresentations,
+        usage.studentsUsed,
+        plan.maxStudents,
+        credits,
+      ),
+      notice: "Đã chuyển sang gói miễn phí.",
     });
   } catch (err) {
     if (err instanceof z.ZodError) {

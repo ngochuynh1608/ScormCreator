@@ -13,6 +13,8 @@ export type AuthUser = {
   locked?: boolean;
   /** Assigned subscription plan id. */
   planId?: string | null;
+  /** ISO timestamp; paid plans revert to free after this. */
+  planExpiresAt?: string | null;
 };
 
 export type PublicUser = {
@@ -22,6 +24,7 @@ export type PublicUser = {
   role: UserRole;
   locked: boolean;
   planId: string | null;
+  planExpiresAt: string | null;
   createdAt: string;
 };
 

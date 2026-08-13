@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { getProject, saveProject, upsertJob, getJob, listJobs } from "../db";
 import { projectDir } from "../storage";
-import { addCreditsUsed } from "../auth/usage";
+import { settleTtsDebit } from "../credits/wallet";
 import { synthesizeEveraiSpeech } from "./everai";
 import { getEveraiApiKey, getTtsSettings } from "./settings";
 import { DEFAULT_VOICE, estimateCredits } from "./voices";
@@ -23,6 +23,8 @@ export async function enqueueTtsJob(input: {
   pitch?: number;
   modelId?: string;
   provider?: "everai" | "mock" | "auto";
+  ownerId?: string;
+  estimatedCredits?: number;
 }): Promise<TtsJob> {
   const settings = await getTtsSettings();
   const now = new Date().toISOString();
@@ -49,6 +51,11 @@ export async function enqueueTtsJob(input: {
     pitch: input.pitch ?? 1,
     modelId: input.modelId || settings.defaultModelId,
     provider: input.provider || "everai",
+    ownerId: input.ownerId,
+    estimatedCredits:
+      input.provider === "mock"
+        ? 0
+        : Math.max(0, Math.ceil(input.estimatedCredits || 0)),
     createdAt: now,
     updatedAt: now,
   };
@@ -222,9 +229,14 @@ async function processJob(jobId: string) {
 
     await applyAudioResult(job.projectId, job.slideId, result);
 
-    if (project.ownerId) {
+    const billedOwner = job.ownerId || project.ownerId;
+    if (billedOwner) {
       const credits = estimateCredits(result.characters, job.voice);
-      await addCreditsUsed(project.ownerId, credits).catch(() => undefined);
+      await settleTtsDebit({
+        userId: billedOwner,
+        amount: credits,
+        jobId: job.id,
+      }).catch(() => undefined);
     }
 
     const latest = await getJob(jobId);

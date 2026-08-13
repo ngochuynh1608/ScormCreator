@@ -12,13 +12,16 @@ import {
   updateUser,
 } from "@/lib/auth/users";
 
+import { getCreditSnapshots } from "@/lib/credits/wallet";
+
 export const runtime = "nodejs";
 
 export async function GET() {
   const auth = await requireAdmin();
   if (auth.error) return auth.error;
   const users = (await listUsers()).map(toPublicUser);
-  return NextResponse.json({ users });
+  const credits = await getCreditSnapshots(users.map((u) => u.id));
+  return NextResponse.json({ users, credits });
 }
 
 const createSchema = z.object({

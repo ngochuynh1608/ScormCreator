@@ -24,6 +24,7 @@ function normalizeUser(row: AuthUser): AuthUser {
     googleId: row.googleId ?? null,
     locked: Boolean(row.locked),
     planId: row.planId ?? null,
+    planExpiresAt: row.planExpiresAt ?? null,
     role: row.role === "admin" ? "admin" : "user",
   };
 }
@@ -42,6 +43,7 @@ export function toPublicUser(user: AuthUser): PublicUser {
     role: resolveUserRole(user),
     locked: Boolean(user.locked),
     planId: user.planId || null,
+    planExpiresAt: user.planExpiresAt || null,
     createdAt: user.createdAt,
   };
 }
@@ -101,6 +103,7 @@ export async function createUser(input: {
     role,
     locked: Boolean(input.locked),
     planId: input.planId ?? null,
+    planExpiresAt: null,
   };
   await store.put(COLLECTIONS.users, user);
   return user;
@@ -125,6 +128,7 @@ export async function updateUser(
     role: UserRole;
     locked: boolean;
     planId: string | null;
+    planExpiresAt: string | null;
     passwordHash: string | null;
     googleId: string | null;
   }>,
@@ -155,6 +159,9 @@ export async function updateUser(
   }
   if (patch.planId !== undefined) {
     cur.planId = patch.planId;
+  }
+  if (patch.planExpiresAt !== undefined) {
+    cur.planExpiresAt = patch.planExpiresAt;
   }
   if (patch.passwordHash !== undefined) {
     cur.passwordHash = patch.passwordHash;

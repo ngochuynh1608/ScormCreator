@@ -3,19 +3,40 @@ import { UserMenu } from "@/components/UserMenu";
 import { HomeUploadHero } from "@/components/HomeUploadHero";
 import { getSession } from "@/lib/auth/session";
 import { findUserById, toPublicUser } from "@/lib/auth/users";
+import { listPlans } from "@/lib/auth/plans";
 
 export default async function HomePage() {
   const session = await getSession();
   const authUser = session ? await findUserById(session.userId) : null;
   const user = authUser ? toPublicUser(authUser) : null;
+  const plans = await listPlans();
 
   return (
     <main className="home-page min-h-screen">
       <header className="home-nav relative z-20 flex items-center justify-between px-5 py-5 md:px-10 lg:px-14">
-        <p className="brand-font text-[15px] font-semibold tracking-tight text-[#0a1f28]">
+        <Link
+          href="/"
+          className="brand-font shrink-0 text-[15px] font-semibold tracking-tight text-[#0a1f28]"
+        >
           ScormCreator
-        </p>
-        <nav className="flex items-center gap-2 sm:gap-3">
+        </Link>
+
+        <nav
+          className="home-nav-menu absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex"
+          aria-label="Menu chính"
+        >
+          <a href="#bang-gia" className="home-nav-menu-link">
+            Bảng giá
+          </a>
+          <a href="#tinh-nang" className="home-nav-menu-link">
+            Tính năng
+          </a>
+          <a href="#faq" className="home-nav-menu-link">
+            Các câu hỏi thường gặp
+          </a>
+        </nav>
+
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {user ? (
             <>
               {user.role === "admin" ? (
@@ -39,8 +60,23 @@ export default async function HomePage() {
               </Link>
             </>
           )}
-        </nav>
+        </div>
       </header>
+
+      <nav
+        className="relative z-20 flex gap-1 overflow-x-auto border-b border-[#d5e4ea]/70 px-5 pb-3 md:hidden"
+        aria-label="Menu trang"
+      >
+        <a href="#bang-gia" className="home-nav-menu-link shrink-0">
+          Bảng giá
+        </a>
+        <a href="#tinh-nang" className="home-nav-menu-link shrink-0">
+          Tính năng
+        </a>
+        <a href="#faq" className="home-nav-menu-link shrink-0">
+          FAQ
+        </a>
+      </nav>
 
       <section className="home-hero relative isolate overflow-hidden">
         <div className="home-hero-atmosphere" aria-hidden />
@@ -132,13 +168,16 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="home-steps relative border-t border-[#d5e4ea] bg-[#f3f7f9] px-5 py-20 md:px-10 lg:px-14">
+      <section
+        id="tinh-nang"
+        className="home-steps relative scroll-mt-24 border-t border-[#d5e4ea] bg-[#f3f7f9] px-5 py-20 md:px-10 lg:px-14"
+      >
         <div className="mx-auto max-w-[1200px]">
           <h2 className="brand-font max-w-md text-3xl font-semibold tracking-tight text-[#0a1f28] md:text-4xl">
-            Ba bước. Xong bài học.
+            Tính năng
           </h2>
           <p className="mt-3 max-w-lg text-base text-[#3d5a66]">
-            Không cần công cụ tác giả phức tạp — bắt đầu từ file bạn đã có.
+            Từ file trình chiếu đến gói SCORM — đủ công cụ để hoàn thiện bài học.
           </p>
           <ol className="home-steps-list mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
             <li className="home-step">
@@ -153,10 +192,10 @@ export default async function HomePage() {
             <li className="home-step">
               <span className="home-step-num">02</span>
               <h3 className="mt-4 text-lg font-semibold text-[#0a1f28]">
-                Gắn giọng đọc &amp; quiz
+                Giọng đọc AI &amp; quiz
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-[#3d5a66]">
-                Tạo audio AI theo kịch bản, chèn câu hỏi trắc nghiệm hoặc đúng/sai.
+                Tạo audio theo kịch bản, chèn câu hỏi trắc nghiệm hoặc đúng/sai.
               </p>
             </li>
             <li className="home-step">
@@ -172,14 +211,118 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section
+        id="bang-gia"
+        className="relative scroll-mt-24 border-t border-[#d5e4ea] bg-white px-5 py-20 md:px-10 lg:px-14"
+      >
+        <div className="mx-auto max-w-[1200px]">
+          <h2 className="brand-font max-w-md text-3xl font-semibold tracking-tight text-[#0a1f28] md:text-4xl">
+            Bảng giá
+          </h2>
+          <p className="mt-3 max-w-lg text-base text-[#3d5a66]">
+            Chọn gói phù hợp — nâng cấp bất cứ lúc nào từ tài khoản của bạn.
+          </p>
+          <div className="home-pricing mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {plans.map((plan) => (
+              <article key={plan.id} className="home-price-card">
+                <h3 className="text-lg font-semibold text-[#0a1f28]">
+                  {plan.name}
+                </h3>
+                <p className="mt-3 brand-font text-3xl font-semibold tracking-tight text-[#0a1f28]">
+                  {plan.monthlyPrice === 0
+                    ? "Miễn phí"
+                    : `${plan.monthlyPrice.toLocaleString("vi-VN")}đ`}
+                  {plan.monthlyPrice > 0 ? (
+                    <span className="ml-1 text-sm font-medium text-[#5b7380]">
+                      /tháng
+                    </span>
+                  ) : null}
+                </p>
+                <ul className="mt-5 space-y-2 text-sm text-[#3d5a66]">
+                  <li>{plan.maxPresentations} trình chiếu</li>
+                  <li>{plan.everaiCredits.toLocaleString("vi-VN")} credit AI</li>
+                  <li>{plan.maxStudents} học viên</li>
+                </ul>
+                <Link
+                  href={user ? "/account/subscription" : "/signup"}
+                  className="home-price-cta"
+                >
+                  {plan.monthlyPrice === 0 ? "Bắt đầu miễn phí" : "Chọn gói này"}
+                </Link>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="faq"
+        className="relative scroll-mt-24 border-t border-[#d5e4ea] bg-[#f3f7f9] px-5 py-20 md:px-10 lg:px-14"
+      >
+        <div className="mx-auto max-w-[800px]">
+          <h2 className="brand-font text-3xl font-semibold tracking-tight text-[#0a1f28] md:text-4xl">
+            Các câu hỏi thường gặp
+          </h2>
+          <p className="mt-3 text-base text-[#3d5a66]">
+            Những câu hỏi hay gặp khi chuyển PPTX thành bài giảng SCORM.
+          </p>
+          <div className="home-faq mt-10 space-y-3">
+            <details className="home-faq-item" open>
+              <summary>ScormCreator hỗ trợ định dạng nào?</summary>
+              <p>
+                Upload file <strong>.pptx</strong> hoặc <strong>.pdf</strong>.
+                Hệ thống tách slide, ảnh và ghi chú để bạn chỉnh sửa trước khi
+                xuất SCORM.
+              </p>
+            </details>
+            <details className="home-faq-item">
+              <summary>Xuất được SCORM phiên bản nào?</summary>
+              <p>
+                Hỗ trợ <strong>SCORM 1.2</strong> và <strong>SCORM 2004</strong>
+                — phù hợp hầu hết LMS doanh nghiệp và trường học.
+              </p>
+            </details>
+            <details className="home-faq-item">
+              <summary>Giọng đọc AI hoạt động thế nào?</summary>
+              <p>
+                Bạn viết hoặc chỉnh kịch bản cho từng slide, chọn giọng, rồi tạo
+                audio. Audio gắn vào bài giảng khi xuất SCORM.
+              </p>
+            </details>
+            <details className="home-faq-item">
+              <summary>Có cần đăng nhập ngay khi upload không?</summary>
+              <p>
+                Có thể bắt đầu upload và mở editor trước. Đăng nhập khi muốn lưu
+                dài hạn vào tài khoản và quản lý nhiều trình chiếu.
+              </p>
+            </details>
+            <details className="home-faq-item">
+              <summary>Làm sao nâng cấp gói?</summary>
+              <p>
+                Vào <strong>Tài khoản → Gói đăng ký</strong> sau khi đăng nhập,
+                hoặc chọn gói tại mục Bảng giá trên trang này.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
       <footer className="border-t border-[#d5e4ea] bg-white px-5 py-8 md:px-10 lg:px-14">
         <div className="mx-auto flex max-w-[1200px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="brand-font text-sm font-semibold text-[#0a1f28]">
             ScormCreator
           </p>
-          <p className="text-sm text-[#5b7380]">
-            PPTX &amp; PDF → SCORM có audio và quiz.
-          </p>
+          <div className="flex flex-wrap gap-4 text-sm text-[#5b7380]">
+            <a href="#bang-gia" className="hover:text-[#0a1f28]">
+              Bảng giá
+            </a>
+            <a href="#tinh-nang" className="hover:text-[#0a1f28]">
+              Tính năng
+            </a>
+            <a href="#faq" className="hover:text-[#0a1f28]">
+              FAQ
+            </a>
+          </div>
         </div>
       </footer>
     </main>

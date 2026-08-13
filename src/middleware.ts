@@ -28,6 +28,8 @@ function isPublicPath(pathname: string) {
   if (pathname.startsWith("/api/files/")) return true;
   // Shared EverAI status (configured / voices) — key stays on server / admin.
   if (pathname === "/api/settings/tts") return true;
+  // Credit balance for the editor (guest gets { guest: true }).
+  if (pathname === "/api/credits/wallet") return true;
   // Large PPTX/PDF uploads — skip middleware body buffering (auth optional in route).
   if (pathname === "/api/upload") return true;
   return false;

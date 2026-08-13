@@ -80,12 +80,16 @@ export function ConfirmGenerateAllAudioModal({
   open,
   slideCount,
   voiceLabel,
+  creditEstimate,
+  creditsAvailable,
   onCancel,
   onConfirm,
 }: {
   open: boolean;
   slideCount: number;
   voiceLabel?: string;
+  creditEstimate?: number;
+  creditsAvailable?: number | null;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -141,7 +145,11 @@ export function ConfirmGenerateAllAudioModal({
           <li>• Thao tác có thể mất vài phút tùy số lượng slide</li>
         </ul>
         <p className="mt-4 text-sm font-semibold leading-6 text-[#c62828]">
-          Thao tác này sẽ tốn nhiều credit.
+          Ước lượng {Number(creditEstimate || 0).toLocaleString("vi-VN")} credit
+          {creditsAvailable != null
+            ? ` · còn ${creditsAvailable.toLocaleString("vi-VN")}`
+            : ""}
+          . Audio cũ trên các slide này sẽ bị ghi đè.
         </p>
         <div className="mt-6 flex justify-end gap-2">
           <button

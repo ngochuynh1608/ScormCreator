@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ContentSlide, ScormPlayerSettings } from "@/lib/types";
 import { estimateDurationMs, formatSeconds } from "@/lib/tts/estimate";
+import { estimateCredits } from "@/lib/tts/voices";
 import { DEFAULT_SCORM_SETTINGS } from "@/lib/scorm/settings";
 import { SlideDesignPanel } from "@/components/SlideDesignPanel";
 
@@ -55,6 +56,8 @@ type Props = {
   onImportNarrationDocx: (file: File) => void;
   importBusy?: boolean;
   audioUrl: string | null;
+  creditGuest?: boolean;
+  creditsAvailable?: number | null;
 };
 
 export function NarrationPanel({
@@ -91,6 +94,8 @@ export function NarrationPanel({
   onImportNarrationDocx,
   importBusy = false,
   audioUrl,
+  creditGuest = false,
+  creditsAvailable = null,
 }: Props) {
   const [mode, setMode] = useState<AudioMode>("ai");
   const [script, setScript] = useState(slide.narrationScript || "");
@@ -141,6 +146,17 @@ export function NarrationPanel({
     [script, rate],
   );
   const durationMs = slide.audioDurationMs ?? estimatedMs;
+  const creditEstimate = useMemo(
+    () => estimateCredits(script.trim().length, voiceCode),
+    [script, voiceCode],
+  );
+  const outOfCredits =
+    !creditGuest &&
+    creditsAvailable != null &&
+    script.trim().length > 0 &&
+    creditsAvailable < creditEstimate;
+  const blockAiGenerate =
+    creditGuest || outOfCredits || (creditsAvailable === 0 && !creditGuest);
 
   const voiceOptions = useMemo(() => {
     const list = voices ?? [];
@@ -207,7 +223,7 @@ export function NarrationPanel({
           <button
             type="button"
             title="Tạo audio EverAI cho toàn bộ slide (ghi đè audio cũ)"
-            disabled={ttsBusy || importBusy || !apiConfigured}
+            disabled={ttsBusy || importBusy || !apiConfigured || blockAiGenerate}
             onClick={onGenerateAll}
             className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b7c8d] hover:bg-[#f0f3f6] disabled:opacity-50"
           >
@@ -555,11 +571,37 @@ export function NarrationPanel({
               Hệ thống chưa cấu hình API key EverAI. Liên hệ admin (mục TTS trong
               trang quản trị).
             </p>
-          ) : null}
+          ) : creditGuest ? (
+            <p className="px-1 text-xs text-[#c45c26]">
+              Đăng nhập và lưu dự án vào tài khoản để tạo audio AI (trừ credit).
+            </p>
+          ) : (
+            <p className="px-1 text-xs text-[#5b6b7c]">
+              Còn{" "}
+              <span className="font-semibold text-[#0f2a36]">
+                {(creditsAvailable ?? 0).toLocaleString("vi-VN")}
+              </span>{" "}
+              credit
+              {script.trim()
+                ? ` · ước lượng ${creditEstimate.toLocaleString("vi-VN")} credit cho slide này`
+                : ""}
+              {outOfCredits ? (
+                <>
+                  {" "}
+                  —{" "}
+                  <a href="/account/payments" className="font-semibold text-[#c45c26] underline">
+                    nạp thêm
+                  </a>
+                </>
+              ) : null}
+            </p>
+          )}
 
           <button
             type="button"
-            disabled={ttsBusy || !script.trim() || !apiConfigured}
+            disabled={
+              ttsBusy || !script.trim() || !apiConfigured || blockAiGenerate
+            }
             onClick={() => {
               onGenerate(script);
             }}

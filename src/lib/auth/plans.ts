@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { COLLECTIONS, getDocumentStore } from "../store";
 import type { SubscriptionPlan } from "./types";
+import { isPlanExpired } from "./plan-expiry";
 
 const DEFAULT_FREE: Omit<SubscriptionPlan, "id" | "createdAt" | "updatedAt"> = {
   name: "Miễn phí",
@@ -30,6 +31,36 @@ export async function listPlans(): Promise<SubscriptionPlan[]> {
 export async function getPlan(id: string): Promise<SubscriptionPlan | null> {
   const store = await getDocumentStore();
   return store.get<SubscriptionPlan>(COLLECTIONS.plans, id);
+}
+
+/** Assigned plan, or the cheapest/free plan if unset / missing / expired. */
+export async function getFreePlan(): Promise<SubscriptionPlan> {
+  const plans = await listPlans();
+  const free = plans.find((p) => p.monthlyPrice === 0) || plans[0];
+  if (!free) {
+    throw new Error("Chưa có gói đăng ký nào được cấu hình.");
+  }
+  return free;
+}
+
+export async function resolvePlanForUser(
+  planId: string | null | undefined,
+  options?: { expiresAt?: string | null; userId?: string },
+): Promise<SubscriptionPlan> {
+  const expired = isPlanExpired(options?.expiresAt);
+  if (planId && !expired) {
+    const plan = await getPlan(planId);
+    if (plan) return plan;
+  }
+  const free = await getFreePlan();
+  if (expired && options?.userId) {
+    const { updateUser } = await import("./users");
+    await updateUser(options.userId, {
+      planId: free.id,
+      planExpiresAt: null,
+    }).catch(() => undefined);
+  }
+  return free;
 }
 
 export async function createPlan(input: {

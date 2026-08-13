@@ -7,6 +7,7 @@ import {
   attachGuestClaimCookie,
   createGuestClaimToken,
 } from "@/lib/auth/guest";
+import { assertCanCreatePresentation, presentationLimitResponse } from "@/lib/auth/quota";
 import { saveProject } from "@/lib/db";
 import { ensureProjectDirs, projectDir } from "@/lib/storage";
 import { parsePptxToSlides } from "@/lib/pptx/parse";
@@ -21,6 +22,15 @@ const MAX_MB = Number(process.env.MAX_UPLOAD_MB || 500);
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
+    if (session) {
+      try {
+        await assertCanCreatePresentation(session.userId);
+      } catch (err) {
+        const limited = presentationLimitResponse(err);
+        if (limited) return limited;
+        throw err;
+      }
+    }
 
     const form = await req.formData();
     const file = form.get("file");

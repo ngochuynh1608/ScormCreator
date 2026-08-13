@@ -1,0 +1,21 @@
+export type PlanOrderStatus = "pending" | "paid" | "rejected" | "cancelled";
+
+export type PlanOrder = {
+  id: string;
+  orderCode: string;
+  userId: string;
+  planId: string;
+  planName: string;
+  months: number;
+  monthlyPrice: number;
+  priceVnd: number;
+  status: PlanOrderStatus;
+  transferContent: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  transferConfirmedAt?: string;
+  expiresAt?: string;
+};

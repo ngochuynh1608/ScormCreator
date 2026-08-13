@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "500mb",
     },
+    // Default ~10mb — large PPTX uploads fail with "Failed to parse body as FormData".
+    proxyClientMaxBodySize: "500mb",
   },
 };
 

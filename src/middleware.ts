@@ -8,7 +8,6 @@ const PROTECTED_PREFIXES = [
   "/projects",
   "/admin",
   "/account",
-  "/api/upload",
   "/api/projects",
   "/api/jobs",
   "/api/settings",
@@ -29,12 +28,13 @@ function isPublicPath(pathname: string) {
   if (pathname.startsWith("/api/files/")) return true;
   // Shared EverAI status (configured / voices) — key stays on server / admin.
   if (pathname === "/api/settings/tts") return true;
+  // Large PPTX/PDF uploads — skip middleware body buffering (auth optional in route).
+  if (pathname === "/api/upload") return true;
   return false;
 }
 
 /** Guest upload → open editor before login. */
 function isGuestAccessible(pathname: string) {
-  if (pathname === "/api/upload") return true;
   // Editor page for a project
   if (/^\/projects\/[^/]+\/?$/.test(pathname)) return true;
   // Load / save draft (access checked in route via guest cookie)
@@ -108,7 +108,7 @@ export const config = {
     "/projects/:path*",
     "/admin/:path*",
     "/account/:path*",
-    "/api/upload",
+    // /api/upload intentionally omitted — large FormData must not be buffered here
     "/api/projects/:path*",
     "/api/jobs",
     "/api/jobs/:path*",

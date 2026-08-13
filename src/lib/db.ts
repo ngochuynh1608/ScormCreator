@@ -10,6 +10,20 @@ import {
 import { COLLECTIONS, getDocumentStore } from "./store";
 import type { Project, Slide, TtsJob } from "./types";
 
+/** Folder name is the source of truth for project id (fixes copied folders). */
+function withFolderId(folderId: string, meta: Project): Project {
+  if (meta.id === folderId) return meta;
+  return { ...meta, id: folderId };
+}
+
+async function healMetaId(folderId: string, meta: Project): Promise<Project> {
+  if (meta.id === folderId) return meta;
+  const fixed = withFolderId(folderId, meta);
+  // Keep timestamps; only correct identity mismatch from manual folder copies.
+  await writeJson(projectMetaPath(folderId), fixed);
+  return fixed;
+}
+
 export async function listProjects(ownerId?: string): Promise<Project[]> {
   const root = path.join(dataRoot(), "projects");
   let entries: string[] = [];
@@ -19,11 +33,19 @@ export async function listProjects(ownerId?: string): Promise<Project[]> {
     return [];
   }
   const projects: Project[] = [];
-  for (const id of entries) {
-    const meta = await readJson<Project>(projectMetaPath(id));
+  for (const folderId of entries) {
+    const abs = path.join(root, folderId);
+    try {
+      const st = await fs.stat(abs);
+      if (!st.isDirectory()) continue;
+    } catch {
+      continue;
+    }
+    const meta = await readJson<Project>(projectMetaPath(folderId));
     if (!meta) continue;
-    if (ownerId && meta.ownerId !== ownerId) continue;
-    projects.push(meta);
+    const project = await healMetaId(folderId, meta);
+    if (ownerId && project.ownerId !== ownerId) continue;
+    projects.push(project);
   }
   return projects.sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -31,7 +53,9 @@ export async function listProjects(ownerId?: string): Promise<Project[]> {
 }
 
 export async function getProject(id: string): Promise<Project | null> {
-  return readJson<Project>(projectMetaPath(id));
+  const meta = await readJson<Project>(projectMetaPath(id));
+  if (!meta) return null;
+  return healMetaId(id, meta);
 }
 
 export async function saveProject(project: Project): Promise<Project> {
@@ -57,7 +81,6 @@ export async function deleteProject(id: string): Promise<boolean> {
   } catch {
     // ignore — treat missing dir as already deleted
   }
-  // Also drop any leftover if parent "projects" was recreated empty
   try {
     await fs.access(dir);
     return false;

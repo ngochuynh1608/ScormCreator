@@ -573,6 +573,62 @@ a {
   pointer-events: none;
 }
 
+.loading-dots {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.05em;
+  margin-left: 0.05em;
+}
+
+.loading-dots > span {
+  display: inline-block;
+  animation: loading-dot-wave 1.05s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.loading-dots > span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.loading-dots > span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+.loading-dots-pill {
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0;
+  min-height: 1rem;
+}
+
+.loading-dots-pill > span {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+@keyframes loading-dot-wave {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  35% {
+    transform: translateY(-0.35em);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-dots > span {
+    animation: none;
+    opacity: 0.85;
+    transform: none;
+  }
+}
+
 .home-steps-list {
   list-style: none;
   padding: 0;

@@ -78,15 +78,38 @@ export function HomeUploadHero() {
         />
         <span className="relative z-[1] min-w-0">
           <span className="block text-base font-semibold tracking-tight text-white md:text-lg">
-            {busy ? "Đang mở editor…" : "Tải PPTX hoặc PDF"}
+            {busy ? (
+              <>
+                Đang mở editor
+                <span className="loading-dots" aria-hidden>
+                  <span>.</span>
+                  <span>.</span>
+                  <span>.</span>
+                </span>
+              </>
+            ) : (
+              "Tải PPTX hoặc PDF"
+            )}
           </span>
           <span className="mt-1 block text-sm text-white/65">
-            Kéo thả hoặc bấm chọn · tối đa{" "}
-            {process.env.NEXT_PUBLIC_MAX_UPLOAD_MB || 500}MB
+            {busy
+              ? "Đang xử lý file, vui lòng chờ…"
+              : `Kéo thả hoặc bấm chọn · tối đa ${process.env.NEXT_PUBLIC_MAX_UPLOAD_MB || 500}MB`}
           </span>
         </span>
-        <span className="relative z-[1] inline-flex shrink-0 items-center justify-center bg-[#1aa86b] px-4 py-2.5 text-sm font-bold text-[#042218] transition group-hover:bg-[#22c07a]">
-          {busy ? "…" : "Bắt đầu"}
+        <span
+          className="relative z-[1] inline-flex h-[2.625rem] min-w-[5.5rem] shrink-0 items-center justify-center bg-[#1aa86b] px-4 py-2.5 text-sm font-bold text-[#042218] transition group-hover:bg-[#22c07a]"
+          aria-live="polite"
+        >
+          {busy ? (
+            <span className="loading-dots loading-dots-pill" aria-hidden>
+              <span />
+              <span />
+              <span />
+            </span>
+          ) : (
+            "Bắt đầu"
+          )}
         </span>
       </label>
       {error ? (

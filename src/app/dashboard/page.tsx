@@ -130,6 +130,15 @@ export default function DashboardPage() {
               onDeleted={(id) =>
                 setProjects((prev) => prev.filter((x) => x.id !== id))
               }
+              onRenamed={(id, title) =>
+                setProjects((prev) =>
+                  prev.map((x) =>
+                    x.id === id
+                      ? { ...x, title, updatedAt: new Date().toISOString() }
+                      : x,
+                  ),
+                )
+              }
             />
           ))}
         </div>

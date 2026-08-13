@@ -19,27 +19,30 @@ export default async function AdminLayout({
   const publicUser = toPublicUser(user);
 
   return (
-    <main className="min-h-screen bg-[#f3f6f9]">
-      <header className="border-b border-[#c9d8e2] bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-8">
-          <div>
-            <Link
-              href="/admin/users"
-              className="text-xs font-bold uppercase tracking-wider text-[#8a98a8]"
-            >
+    <main className="admin-shell min-h-screen">
+      <div className="admin-atmosphere" aria-hidden />
+      <header className="admin-header relative z-10">
+        <div className="admin-header-inner">
+          <div className="min-w-0">
+            <Link href="/admin/users" className="admin-brand">
               ScormCreator
             </Link>
-            <p className="brand-font text-xl font-semibold text-[#0f2a36]">
-              Bảng điều khiển Admin
+            <p className="brand-font mt-0.5 text-lg font-semibold tracking-tight text-[#0a1f28] md:text-xl">
+              Bảng điều khiển
             </p>
           </div>
-          <UserMenu user={publicUser} />
+          <div className="flex items-center gap-2">
+            <Link href="/" className="admin-ghost-link">
+              Trang chủ
+            </Link>
+            <UserMenu user={publicUser} />
+          </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 md:grid-cols-[220px_1fr] md:px-8">
+      <div className="admin-body relative z-10">
         <AdminNav />
-        <div className="min-w-0">{children}</div>
+        <div className="admin-content min-w-0">{children}</div>
       </div>
     </main>
   );

@@ -181,14 +181,12 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <section className="rounded-[28px] border border-[#d5e1ea] bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section className="admin-panel">
+      <div className="admin-panel-head">
         <div>
-          <h1 className="brand-font text-2xl font-semibold text-[#0f2a36]">
-            Quản lý người dùng
-          </h1>
-          <p className="mt-1 text-sm text-[#5b6b7c]">
-            Thêm, sửa, xóa, khóa / mở khóa tài khoản và gán gói đăng ký.
+          <h1 className="brand-font admin-title">Người dùng</h1>
+          <p className="admin-desc">
+            Thêm, sửa, khóa tài khoản và gán gói đăng ký.
           </p>
         </div>
         <button
@@ -198,22 +196,18 @@ export default function AdminUsersPage() {
             setCreating(true);
             setDraft(emptyDraft());
           }}
-          className="rounded-full bg-[#2bb673] px-4 py-2 text-sm font-bold text-[#083024]"
+          className="admin-btn-primary"
         >
           + Thêm người dùng
         </button>
       </div>
 
-      {loading ? <p className="mt-4 text-sm text-[#5b6b7c]">Đang tải…</p> : null}
-      {error ? (
-        <p className="mt-4 text-sm font-medium text-[#c45c26]">{error}</p>
-      ) : null}
-      {message ? (
-        <p className="mt-4 text-sm font-medium text-[#1f7a4d]">{message}</p>
-      ) : null}
+      {loading ? <p className="admin-muted">Đang tải…</p> : null}
+      {error ? <p className="admin-alert-error">{error}</p> : null}
+      {message ? <p className="admin-alert-ok">{message}</p> : null}
 
       {(creating || editingId) && (
-        <div className="mt-5 grid gap-3 rounded-2xl border border-[#e2e8ef] bg-[#f7f9fb] p-4 sm:grid-cols-2">
+        <div className="admin-form-grid">
           <Field
             label="Tên"
             value={draft.name}
@@ -230,7 +224,7 @@ export default function AdminUsersPage() {
             value={draft.password}
             onChange={(v) => setDraft({ ...draft, password: v })}
           />
-          <label className="block text-xs font-bold uppercase tracking-wide text-[#8a98a8]">
+          <label className="admin-label">
             Role
             <select
               value={draft.role}
@@ -240,18 +234,18 @@ export default function AdminUsersPage() {
                   role: e.target.value as "user" | "admin",
                 })
               }
-              className="mt-1.5 w-full rounded-xl border border-[#e2e8ef] bg-white px-3 py-2.5 text-sm font-medium text-[#0f2a36]"
+              className="admin-select"
             >
               <option value="user">user</option>
               <option value="admin">admin</option>
             </select>
           </label>
-          <label className="block text-xs font-bold uppercase tracking-wide text-[#8a98a8]">
+          <label className="admin-label">
             Gói đăng ký
             <select
               value={draft.planId}
               onChange={(e) => setDraft({ ...draft, planId: e.target.value })}
-              className="mt-1.5 w-full rounded-xl border border-[#e2e8ef] bg-white px-3 py-2.5 text-sm font-medium text-[#0f2a36]"
+              className="admin-select"
             >
               <option value="">— Không gán —</option>
               {plans.map((p) => (
@@ -264,7 +258,7 @@ export default function AdminUsersPage() {
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-2 pt-6 text-sm font-semibold text-[#0f2a36]">
+          <label className="admin-check">
             <input
               type="checkbox"
               checked={draft.locked}
@@ -274,14 +268,14 @@ export default function AdminUsersPage() {
             />
             Khóa tài khoản
           </label>
-          <div className="flex flex-wrap gap-2 sm:col-span-2">
+          <div className="admin-form-actions">
             <button
               type="button"
               disabled={Boolean(busyId)}
               onClick={() =>
                 void (creating ? create() : editingId && saveEdit(editingId))
               }
-              className="rounded-full bg-[#0f2a36] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              className="admin-btn-dark"
             >
               {busyId ? "Đang lưu…" : "Lưu"}
             </button>
@@ -292,7 +286,7 @@ export default function AdminUsersPage() {
                 setEditingId(null);
                 setDraft(emptyDraft());
               }}
-              className="rounded-full bg-[#e8eef5] px-4 py-2 text-sm font-semibold text-[#0f2a36]"
+              className="admin-btn-muted"
             >
               Hủy
             </button>
@@ -300,55 +294,49 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div className="mt-5 overflow-x-auto">
-        <table className="min-w-full text-left text-sm">
+      <div className="admin-table-wrap">
+        <table className="admin-table">
           <thead>
-            <tr className="border-b border-[#e2e8ef] text-xs uppercase tracking-wide text-[#8a98a8]">
-              <th className="py-2 pr-3 font-bold">Tên</th>
-              <th className="py-2 pr-3 font-bold">Email</th>
-              <th className="py-2 pr-3 font-bold">Role</th>
-              <th className="py-2 pr-3 font-bold">Gói</th>
-              <th className="py-2 pr-3 font-bold">Trạng thái</th>
-              <th className="py-2 font-bold">Thao tác</th>
+            <tr>
+              <th>Tên</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Gói</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="border-b border-[#eef2f6]">
-                <td className="py-3 pr-3 font-semibold text-[#0f2a36]">
-                  {u.name}
-                </td>
-                <td className="py-3 pr-3 text-[#5b6b7c]">{u.email}</td>
-                <td className="py-3 pr-3">
+              <tr key={u.id}>
+                <td className="admin-cell-strong">{u.name}</td>
+                <td className="admin-cell-muted">{u.email}</td>
+                <td>
                   <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                    className={`admin-badge ${
                       u.role === "admin"
-                        ? "bg-[#e5f6ee] text-[#1f7a4d]"
-                        : "bg-[#eef3f8] text-[#5b6b7c]"
+                        ? "admin-badge-admin"
+                        : "admin-badge-neutral"
                     }`}
                   >
                     {u.role}
                   </span>
                 </td>
-                <td className="py-3 pr-3 text-[#5b6b7c]">{planName(u.planId)}</td>
-                <td className="py-3 pr-3">
+                <td className="admin-cell-muted">{planName(u.planId)}</td>
+                <td>
                   {u.locked ? (
-                    <span className="rounded-full bg-[#fff4ef] px-2.5 py-1 text-xs font-bold text-[#c45c26]">
-                      Đã khóa
-                    </span>
+                    <span className="admin-badge admin-badge-warn">Đã khóa</span>
                   ) : (
-                    <span className="rounded-full bg-[#e5f6ee] px-2.5 py-1 text-xs font-bold text-[#1f7a4d]">
-                      Hoạt động
-                    </span>
+                    <span className="admin-badge admin-badge-ok">Hoạt động</span>
                   )}
                 </td>
-                <td className="py-3">
-                  <div className="flex flex-wrap gap-2">
+                <td>
+                  <div className="admin-row-actions">
                     <button
                       type="button"
                       disabled={busyId === u.id}
                       onClick={() => startEdit(u)}
-                      className="text-sm font-semibold text-[#0f2a36] disabled:opacity-50"
+                      className="admin-link"
                     >
                       Sửa
                     </button>
@@ -356,7 +344,7 @@ export default function AdminUsersPage() {
                       type="button"
                       disabled={busyId === u.id}
                       onClick={() => void toggleLock(u)}
-                      className="text-sm font-semibold text-[#8a5a00] disabled:opacity-50"
+                      className="admin-link admin-link-warn"
                     >
                       {u.locked ? "Mở khóa" : "Khóa"}
                     </button>
@@ -364,7 +352,7 @@ export default function AdminUsersPage() {
                       type="button"
                       disabled={busyId === u.id}
                       onClick={() => void remove(u)}
-                      className="text-sm font-semibold text-[#c45c26] disabled:opacity-50"
+                      className="admin-link admin-link-danger"
                     >
                       Xóa
                     </button>
@@ -391,13 +379,13 @@ function Field({
   type?: string;
 }) {
   return (
-    <label className="block text-xs font-bold uppercase tracking-wide text-[#8a98a8]">
+    <label className="admin-label">
       {label}
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 w-full rounded-xl border border-[#e2e8ef] bg-white px-3 py-2.5 text-sm font-medium text-[#0f2a36] outline-none focus:border-[#2bb673]"
+        className="admin-input"
       />
     </label>
   );

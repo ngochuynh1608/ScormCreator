@@ -3,33 +3,42 @@ import { AuthForm } from "@/components/AuthForm";
 
 export default function SignupPage() {
   return (
-    <main className="relative flex min-h-screen flex-col overflow-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 50% at 10% 0%, rgba(124,196,232,0.35), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 10%, rgba(43,182,115,0.22), transparent 50%), linear-gradient(165deg, #0f2a36 0%, #163848 45%, #1c4a3a 100%)",
-        }}
-      />
-      <header className="flex items-center justify-between px-6 py-5 md:px-10">
+    <main className="auth-page min-h-screen">
+      <div className="auth-atmosphere" aria-hidden />
+      <header className="relative z-10 flex items-center justify-between px-5 py-5 md:px-10">
         <Link
           href="/"
-          className="brand-font text-lg font-semibold tracking-tight"
-          style={{ color: "#edf3f7" }}
+          className="brand-font text-[15px] font-semibold tracking-tight text-[#0a1f28]"
         >
           ScormCreator
         </Link>
-        <Link
-          href="/login"
-          className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur"
-          style={{ color: "#edf3f7" }}
-        >
+        <Link href="/login" className="auth-nav-link">
           Đăng nhập
         </Link>
       </header>
-      <section className="flex flex-1 items-center justify-center px-6 pb-16">
-        <AuthForm mode="signup" nextPath="/dashboard" />
+
+      <section className="relative z-10 mx-auto grid w-full max-w-[1100px] flex-1 items-center gap-10 px-5 pb-16 pt-4 md:px-10 lg:grid-cols-2 lg:gap-16 lg:pb-20">
+        <div className="auth-aside hidden lg:block">
+          <p className="brand-font text-4xl font-semibold leading-[1.05] tracking-tight text-[#0a1f28] xl:text-5xl">
+            Bắt đầu tạo bài giảng SCORM.
+          </p>
+          <p className="mt-4 max-w-sm text-base leading-relaxed text-[#3d5a66]">
+            Tạo tài khoản miễn phí — tải PPTX hoặc PDF, thêm giọng AI và câu hỏi,
+            rồi xuất gói sẵn cho LMS.
+          </p>
+          <ul className="auth-aside-list mt-8">
+            <li>Upload PPTX / PDF trong vài phút</li>
+            <li>Giọng đọc AI + quiz tương tác</li>
+            <li>Xuất SCORM đưa thẳng lên LMS</li>
+          </ul>
+        </div>
+
+        <div className="w-full max-w-md justify-self-center lg:justify-self-end">
+          <p className="mb-4 brand-font text-2xl font-semibold tracking-tight text-[#0a1f28] lg:hidden">
+            Tạo tài khoản
+          </p>
+          <AuthForm mode="signup" nextPath="/dashboard" />
+        </div>
       </section>
     </main>
   );

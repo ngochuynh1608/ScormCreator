@@ -92,62 +92,75 @@ export function AuthForm({
 
   return (
     <div
-      className={`w-full rounded-[28px] bg-white/95 shadow-xl backdrop-blur ${
-        compact ? "p-5" : "max-w-md p-6 md:p-8"
+      className={`auth-card w-full ${
+        compact ? "auth-card-compact p-5" : "p-6 md:p-8"
       }`}
     >
-      <p className="brand-font text-2xl font-semibold text-[#0f2a36]">
-        {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
-      </p>
-      <p className="mt-2 text-sm leading-6 text-[#5b6b7c]">
-        {compact
-          ? "Đăng nhập hoặc tạo tài khoản để mở editor và lưu trình chiếu."
-          : mode === "login"
-            ? "Đăng nhập để tiếp tục — admin vào bảng điều khiển, user vào trình chiếu."
-            : "Mở tài khoản để tạo và quản lý nhiều bài giảng SCORM."}
-      </p>
+      {!compact ? (
+        <>
+          <p className="brand-font text-2xl font-semibold tracking-tight text-[#0a1f28]">
+            {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-[#3d5a66]">
+            {mode === "login"
+              ? "Nhập email và mật khẩu để tiếp tục làm việc với bài giảng của bạn."
+              : "Chỉ cần vài thông tin — sau đó bạn có thể tải file và xuất SCORM ngay."}
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="brand-font text-xl font-semibold tracking-tight text-[#0a1f28]">
+            {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
+          </p>
+          <p className="mt-1.5 text-sm leading-relaxed text-[#3d5a66]">
+            Đăng nhập hoặc tạo tài khoản để lưu trình chiếu vào workspace của bạn.
+          </p>
+        </>
+      )}
 
-      <form className="mt-6 space-y-3" onSubmit={(e) => void onSubmit(e)}>
+      <form className="mt-6 space-y-3.5" onSubmit={(e) => void onSubmit(e)}>
         {mode === "signup" ? (
-          <label className="block text-xs font-semibold text-[#5b6b7c]">
+          <label className="auth-label">
             Họ tên
             <input
               required
+              autoComplete="name"
+              placeholder="Nguyễn Văn A"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-[#d5e1ea] bg-white px-3 py-2.5 text-sm font-medium text-[#0f2a36] outline-none focus:border-[#2bb673]"
+              className="auth-input"
             />
           </label>
         ) : null}
-        <label className="block text-xs font-semibold text-[#5b6b7c]">
+        <label className="auth-label">
           Email
           <input
             required
             type="email"
+            autoComplete="email"
+            placeholder="ban@congty.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-[#d5e1ea] bg-white px-3 py-2.5 text-sm font-medium text-[#0f2a36] outline-none focus:border-[#2bb673]"
+            className="auth-input"
           />
         </label>
-        <label className="block text-xs font-semibold text-[#5b6b7c]">
+        <label className="auth-label">
           Mật khẩu
           <input
             required
             type="password"
+            autoComplete={
+              mode === "login" ? "current-password" : "new-password"
+            }
             minLength={6}
+            placeholder={mode === "signup" ? "Tối thiểu 6 ký tự" : "••••••••"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-[#d5e1ea] bg-white px-3 py-2.5 text-sm font-medium text-[#0f2a36] outline-none focus:border-[#2bb673]"
+            className="auth-input"
           />
         </label>
-        {error ? (
-          <p className="text-sm font-medium text-[#c45c26]">{error}</p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-full bg-[#2bb673] px-4 py-3 text-sm font-bold text-[#083024] disabled:opacity-50"
-        >
+        {error ? <p className="auth-error">{error}</p> : null}
+        <button type="submit" disabled={busy} className="auth-submit">
           {busy
             ? "Đang xử lý…"
             : mode === "login"
@@ -162,35 +175,35 @@ export function AuthForm({
 
       {!compact && googleEnabled ? (
         <>
-          <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-[#8a98a8]">
-            <span className="h-px flex-1 bg-[#e2e8ef]" />
-            hoặc
-            <span className="h-px flex-1 bg-[#e2e8ef]" />
+          <div className="auth-divider">
+            <span />
+            <em>hoặc</em>
+            <span />
           </div>
-          <a
-            href="/api/auth/google"
-            className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d5e1ea] bg-white px-4 py-3 text-sm font-semibold text-[#0f2a36] hover:bg-[#f7f9fb]"
-          >
+          <a href="/api/auth/google" className="auth-google">
             <GoogleIcon />
             Tiếp tục với Google
           </a>
         </>
       ) : null}
 
-      <p className="mt-5 text-center text-sm text-[#5b6b7c]">
+      <p className="mt-6 text-center text-sm text-[#3d5a66]">
         {mode === "login" ? (
           <>
             Chưa có tài khoản?{" "}
             {compact ? (
               <button
                 type="button"
-                className="font-semibold text-[#0f2a36] underline"
+                className="font-semibold text-[#0a1f28] underline decoration-[#1aa86b] underline-offset-2"
                 onClick={() => setMode("signup")}
               >
                 Đăng ký
               </button>
             ) : (
-              <Link href="/signup" className="font-semibold text-[#0f2a36]">
+              <Link
+                href="/signup"
+                className="font-semibold text-[#0a1f28] underline decoration-[#1aa86b] underline-offset-2"
+              >
                 Đăng ký
               </Link>
             )}
@@ -201,13 +214,16 @@ export function AuthForm({
             {compact ? (
               <button
                 type="button"
-                className="font-semibold text-[#0f2a36] underline"
+                className="font-semibold text-[#0a1f28] underline decoration-[#1aa86b] underline-offset-2"
                 onClick={() => setMode("login")}
               >
                 Đăng nhập
               </button>
             ) : (
-              <Link href="/login" className="font-semibold text-[#0f2a36]">
+              <Link
+                href="/login"
+                className="font-semibold text-[#0a1f28] underline decoration-[#1aa86b] underline-offset-2"
+              >
                 Đăng nhập
               </Link>
             )}

@@ -136,14 +136,12 @@ export default function AdminPlansPage() {
   }
 
   return (
-    <section className="rounded-[28px] border border-[#d5e1ea] bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section className="admin-panel">
+      <div className="admin-panel-head">
         <div>
-          <h1 className="brand-font text-2xl font-semibold text-[#0f2a36]">
-            Gói đăng ký
-          </h1>
-          <p className="mt-1 text-sm text-[#5b6b7c]">
-            Số trình chiếu, credit EverAI, học viên và giá tháng (0 = miễn phí).
+          <h1 className="brand-font admin-title">Gói đăng ký</h1>
+          <p className="admin-desc">
+            Số trình chiếu, credit AI, học viên và giá tháng (0 = miễn phí).
           </p>
         </div>
         <button
@@ -153,22 +151,18 @@ export default function AdminPlansPage() {
             setCreating(true);
             setDraft(emptyDraft());
           }}
-          className="rounded-full bg-[#2bb673] px-4 py-2 text-sm font-bold text-[#083024]"
+          className="admin-btn-primary"
         >
           + Thêm gói
         </button>
       </div>
 
-      {loading ? <p className="mt-4 text-sm text-[#5b6b7c]">Đang tải…</p> : null}
-      {error ? (
-        <p className="mt-4 text-sm font-medium text-[#c45c26]">{error}</p>
-      ) : null}
-      {message ? (
-        <p className="mt-4 text-sm font-medium text-[#1f7a4d]">{message}</p>
-      ) : null}
+      {loading ? <p className="admin-muted">Đang tải…</p> : null}
+      {error ? <p className="admin-alert-error">{error}</p> : null}
+      {message ? <p className="admin-alert-ok">{message}</p> : null}
 
       {(creating || editingId) && (
-        <div className="mt-5 grid gap-3 rounded-2xl border border-[#e2e8ef] bg-[#f7f9fb] p-4 sm:grid-cols-2">
+        <div className="admin-form-grid">
           <Field
             label="Tên gói"
             value={draft.name}
@@ -180,7 +174,7 @@ export default function AdminPlansPage() {
             onChange={(v) => setDraft({ ...draft, maxPresentations: v })}
           />
           <Field
-            label="Credit EverAI"
+            label="Credit AI"
             value={draft.everaiCredits}
             onChange={(v) => setDraft({ ...draft, everaiCredits: v })}
           />
@@ -194,14 +188,14 @@ export default function AdminPlansPage() {
             value={draft.monthlyPrice}
             onChange={(v) => setDraft({ ...draft, monthlyPrice: v })}
           />
-          <div className="flex flex-wrap gap-2 sm:col-span-2">
+          <div className="admin-form-actions">
             <button
               type="button"
               disabled={Boolean(busyId)}
               onClick={() =>
                 void (creating ? create() : editingId && saveEdit(editingId))
               }
-              className="rounded-full bg-[#0f2a36] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              className="admin-btn-dark"
             >
               {busyId ? "Đang lưu…" : "Lưu"}
             </button>
@@ -212,7 +206,7 @@ export default function AdminPlansPage() {
                 setEditingId(null);
                 setDraft(emptyDraft());
               }}
-              className="rounded-full bg-[#e8eef5] px-4 py-2 text-sm font-semibold text-[#0f2a36]"
+              className="admin-btn-muted"
             >
               Hủy
             </button>
@@ -220,36 +214,32 @@ export default function AdminPlansPage() {
         </div>
       )}
 
-      <div className="mt-5 overflow-x-auto">
-        <table className="min-w-full text-left text-sm">
+      <div className="admin-table-wrap">
+        <table className="admin-table">
           <thead>
-            <tr className="border-b border-[#e2e8ef] text-xs uppercase tracking-wide text-[#8a98a8]">
-              <th className="py-2 pr-3 font-bold">Tên</th>
-              <th className="py-2 pr-3 font-bold">Trình chiếu</th>
-              <th className="py-2 pr-3 font-bold">Credit</th>
-              <th className="py-2 pr-3 font-bold">Học viên</th>
-              <th className="py-2 pr-3 font-bold">Giá / tháng</th>
-              <th className="py-2 font-bold">Thao tác</th>
+            <tr>
+              <th>Tên</th>
+              <th>Trình chiếu</th>
+              <th>Credit</th>
+              <th>Học viên</th>
+              <th>Giá / tháng</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {plans.map((p) => (
-              <tr key={p.id} className="border-b border-[#eef2f6]">
-                <td className="py-3 pr-3 font-semibold text-[#0f2a36]">
-                  {p.name}
-                </td>
-                <td className="py-3 pr-3 text-[#5b6b7c]">
-                  {p.maxPresentations}
-                </td>
-                <td className="py-3 pr-3 text-[#5b6b7c]">{p.everaiCredits}</td>
-                <td className="py-3 pr-3 text-[#5b6b7c]">{p.maxStudents}</td>
-                <td className="py-3 pr-3 text-[#5b6b7c]">
+              <tr key={p.id}>
+                <td className="admin-cell-strong">{p.name}</td>
+                <td className="admin-cell-muted">{p.maxPresentations}</td>
+                <td className="admin-cell-muted">{p.everaiCredits}</td>
+                <td className="admin-cell-muted">{p.maxStudents}</td>
+                <td className="admin-cell-muted">
                   {p.monthlyPrice === 0
                     ? "Miễn phí"
                     : `${p.monthlyPrice.toLocaleString("vi-VN")}đ`}
                 </td>
-                <td className="py-3">
-                  <div className="flex flex-wrap gap-2">
+                <td>
+                  <div className="admin-row-actions">
                     <button
                       type="button"
                       disabled={busyId === p.id}
@@ -258,7 +248,7 @@ export default function AdminPlansPage() {
                         setEditingId(p.id);
                         setDraft(fromPlan(p));
                       }}
-                      className="text-sm font-semibold text-[#0f2a36] disabled:opacity-50"
+                      className="admin-link"
                     >
                       Sửa
                     </button>
@@ -266,7 +256,7 @@ export default function AdminPlansPage() {
                       type="button"
                       disabled={busyId === p.id}
                       onClick={() => void remove(p)}
-                      className="text-sm font-semibold text-[#c45c26] disabled:opacity-50"
+                      className="admin-link admin-link-danger"
                     >
                       Xóa
                     </button>
@@ -291,13 +281,13 @@ function Field({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="block text-xs font-bold uppercase tracking-wide text-[#8a98a8]">
+    <label className="admin-label">
       {label}
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 w-full rounded-xl border border-[#e2e8ef] bg-white px-3 py-2.5 text-sm font-medium text-[#0f2a36] outline-none focus:border-[#2bb673]"
+        className="admin-input"
       />
     </label>
   );

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, requireSession } from "@/lib/auth/guards";
+import { requireAdmin } from "@/lib/auth/guards";
 import {
   getTtsSettings,
   maskApiKey,
@@ -10,14 +10,15 @@ import { EVERAI_MODELS, EVERAI_VOICES } from "@/lib/tts/voices";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const auth = await requireSession();
-  if (auth.error) return auth.error;
+  // Public status for the editor (guest + logged-in). Never returns the raw key.
+  // API key itself is shared from admin / env via getEveraiApiKey() on the server.
   const settings = await getTtsSettings();
   const envConfigured = Boolean(process.env.EVERAI_API_KEY?.trim());
+  const configured = Boolean(settings.everaiApiKey) || envConfigured;
   return NextResponse.json({
-    configured: Boolean(settings.everaiApiKey) || envConfigured,
+    configured,
     source: settings.everaiApiKey
-      ? "ui"
+      ? "admin"
       : envConfigured
         ? "env"
         : "none",

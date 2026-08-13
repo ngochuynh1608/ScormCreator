@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireOwnedProject } from "@/lib/auth/project-access";
+import { requireProjectAccess } from "@/lib/auth/guest";
 import { enqueueTtsJob } from "@/lib/tts/queue";
 import type { ContentSlide } from "@/lib/types";
 
@@ -20,9 +20,9 @@ type TtsBody = {
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
-  const owned = await requireOwnedProject(id);
-  if (owned.error) return owned.error;
-  const project = owned.project;
+  const access = await requireProjectAccess(req, id);
+  if (access.error) return access.error;
+  const project = access.project;
   const body = (await req.json()) as TtsBody;
   const common = {
     projectId: id,
@@ -84,6 +84,5 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     ...common,
     slideId,
   });
-
   return NextResponse.json({ job });
 }

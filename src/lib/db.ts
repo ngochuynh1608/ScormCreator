@@ -54,9 +54,15 @@ export async function deleteProject(id: string): Promise<boolean> {
   const dir = projectDir(id);
   try {
     await fs.rm(dir, { recursive: true, force: true });
-    return true;
   } catch {
+    // ignore — treat missing dir as already deleted
+  }
+  // Also drop any leftover if parent "projects" was recreated empty
+  try {
+    await fs.access(dir);
     return false;
+  } catch {
+    return true;
   }
 }
 

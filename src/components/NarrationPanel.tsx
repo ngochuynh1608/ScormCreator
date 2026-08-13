@@ -552,7 +552,8 @@ export function NarrationPanel({
 
           {!apiConfigured ? (
             <p className="px-1 text-xs text-[#c45c26]">
-              Cần API key EverAI trước khi tạo giọng đọc (nút bánh răng phía trên).
+              Hệ thống chưa cấu hình API key EverAI. Liên hệ admin (mục TTS trong
+              trang quản trị).
             </p>
           ) : null}
 

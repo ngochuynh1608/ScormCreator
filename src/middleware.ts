@@ -27,6 +27,8 @@ function isPublicPath(pathname: string) {
   // Public preview + media for shared links
   if (/^\/projects\/[^/]+\/preview\/?$/.test(pathname)) return true;
   if (pathname.startsWith("/api/files/")) return true;
+  // Shared EverAI status (configured / voices) — key stays on server / admin.
+  if (pathname === "/api/settings/tts") return true;
   return false;
 }
 
@@ -37,6 +39,18 @@ function isGuestAccessible(pathname: string) {
   if (/^\/projects\/[^/]+\/?$/.test(pathname)) return true;
   // Load / save draft (access checked in route via guest cookie)
   if (/^\/api\/projects\/[^/]+\/?$/.test(pathname)) return true;
+  // Guest draft TTS + related media (route checks guest cookie / ownership)
+  if (
+    /^\/api\/projects\/[^/]+\/(tts|audio|visual|quiz|narration-import)\/?$/.test(
+      pathname,
+    )
+  ) {
+    return true;
+  }
+  // Poll / cancel TTS jobs while editing as guest
+  if (pathname === "/api/jobs" || pathname.startsWith("/api/jobs/")) {
+    return true;
+  }
   // Public shared preview payload (read-only)
   if (/^\/api\/projects\/[^/]+\/public\/?$/.test(pathname)) return true;
   // Claim after login

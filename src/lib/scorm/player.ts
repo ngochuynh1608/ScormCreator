@@ -23,7 +23,7 @@ html[data-quiz-theme="light"] {
 html, body { height: 100%; }
 body {
   margin: 0;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: "Segoe UI", "Be Vietnam Pro", system-ui, sans-serif;
   color: var(--ink);
   background: var(--bg);
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireOwnedProject } from "@/lib/auth/project-access";
+import { requireProjectAccess } from "@/lib/auth/guest";
 import { saveProject } from "@/lib/db";
 import { createQuizSlide } from "@/lib/quiz";
 import type { QuizType } from "@/lib/types";
@@ -10,9 +10,9 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
-  const owned = await requireOwnedProject(id);
-  if (owned.error) return owned.error;
-  const project = owned.project;
+  const access = await requireProjectAccess(req, id);
+  if (access.error) return access.error;
+  const project = access.project;
 
   const body = await req.json();
   const quizType: QuizType =
@@ -28,15 +28,17 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   if (replaceSlideId) {
     const idx = project.slides.findIndex((s) => s.id === replaceSlideId);
-    if (idx < 0) {
-      return NextResponse.json(
-        { error: "Không tìm thấy slide để thay thế." },
-        { status: 404 },
-      );
+    if (idx >= 0) {
+      quiz.order = idx;
+      quiz.id = replaceSlideId;
+      project.slides[idx] = quiz;
+    } else {
+      // Blank existed only on the client (persist race / copied project out of sync).
+      // Insert quiz instead of failing with "Không tìm thấy slide để thay thế."
+      quiz.id = replaceSlideId;
+      quiz.order = project.slides.length;
+      project.slides = [...project.slides, quiz];
     }
-    quiz.order = idx;
-    quiz.id = replaceSlideId;
-    project.slides[idx] = quiz;
   } else {
     const insertAt = Math.max(
       0,

@@ -191,7 +191,7 @@ async function processJob(jobId: string) {
     const apiKey = await getEveraiApiKey();
     if (!apiKey) {
       throw new Error(
-        "Chưa cấu hình API key EverAI. Mở phần Giọng đọc AI → Cài đặt API key.",
+        "Chưa cấu hình API key EverAI. Admin cần thiết lập tại /admin.",
       );
     }
 

@@ -632,6 +632,12 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     slideId: string,
     quizType: "single" | "truefalse",
   ) {
+    if (!project) return;
+    // Ensure the blank slide exists on disk before replace (avoids persist race
+    // after copy/manual folder clone or fast click).
+    const latest = projectRef.current || project;
+    await persist(latest, { immediate: true });
+
     const res = await fetch(`/api/projects/${projectId}/quiz`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -712,7 +718,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       return;
     }
     if (!apiConfigured) {
-      setMessage("Chưa cấu hình API key EverAI.");
+      setMessage(
+        "Hệ thống chưa cấu hình API key EverAI. Liên hệ admin để thiết lập.",
+      );
       return;
     }
 
@@ -798,7 +806,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       setNotice({
         title: "Chưa cấu hình EverAI",
         message:
-          "Cần API key EverAI trước khi tạo audio hàng loạt. Mở trang Admin hoặc nút bánh răng trên panel giọng đọc để cấu hình.",
+          "Hệ thống chưa có API key EverAI dùng chung. Admin cần cấu hình trong trang Quản trị → TTS.",
       });
       return;
     }
@@ -1165,18 +1173,31 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   return (
     <div className="min-h-screen">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#c9d8e2] bg-white/70 px-4 py-3 backdrop-blur md:px-6">
-        <div>
-          <Link href="/dashboard" className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-            ScormCreator
+        <div className="flex min-w-0 items-start gap-2.5">
+          <Link
+            href="/dashboard"
+            aria-label="Quay lại danh sách trình chiếu"
+            title="Quay lại"
+            className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d7e2ea] bg-white text-[#0f2a36] transition hover:bg-[#f4f7fa]"
+          >
+            <BackArrowIcon />
           </Link>
-          <input
-            className="brand-font mt-1 block w-full max-w-lg border-0 bg-transparent text-xl font-semibold outline-none"
-            value={project.title}
-            onChange={(e) => setProject({ ...project, title: e.target.value })}
-            onBlur={() =>
-              void persist(projectRef.current || project, { immediate: true })
-            }
-          />
+          <div className="min-w-0">
+            <Link
+              href="/dashboard"
+              className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] transition hover:text-[#0f2a36]"
+            >
+              ScormCreator
+            </Link>
+            <input
+              className="brand-font mt-1 block w-full max-w-lg border-0 bg-transparent text-xl font-semibold outline-none"
+              value={project.title}
+              onChange={(e) => setProject({ ...project, title: e.target.value })}
+              onBlur={() =>
+                void persist(projectRef.current || project, { immediate: true })
+              }
+            />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {!project.ownerId ? (
@@ -1188,55 +1209,90 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
               Đăng nhập để lưu
             </button>
           ) : null}
-          <Link
-            href={`/projects/${projectId}/preview`}
-            className="inline-flex h-9 items-center rounded-full bg-[#0f2a36] px-3 text-xs font-semibold"
-            style={{ color: "#edf3f7" }}
+          <div
+            className="inline-flex items-center gap-1 rounded-full border border-[#d7e2ea] bg-[#f4f7fa] p-1"
+            role="group"
+            aria-label="Xem trước và chia sẻ"
           >
-            Xem trước
-          </Link>
-          <button
-            type="button"
-            onClick={() => void sharePreviewLink()}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#c9d8e2] bg-white px-3 text-xs font-semibold text-[#0f2a36]"
-          >
-            <ShareIcon />
-            Chia sẻ
-          </button>
+            <Link
+              href={`/projects/${projectId}/preview`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-[#0f2a36] transition hover:bg-white hover:shadow-sm"
+            >
+              <PreviewIcon />
+              Xem trước
+            </Link>
+            <span className="h-4 w-px bg-[#d7e2ea]" aria-hidden />
+            <button
+              type="button"
+              onClick={() => void sharePreviewLink()}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-[#0f2a36] transition hover:bg-white hover:shadow-sm"
+            >
+              <ShareIcon />
+              Chia sẻ
+            </button>
+          </div>
           <div className="relative" ref={downloadMenuRef}>
             <button
               type="button"
               disabled={!!exporting}
+              aria-haspopup="menu"
+              aria-expanded={downloadOpen && !exporting}
               onClick={() => setDownloadOpen((v) => !v)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#2bb673] px-3 text-xs font-semibold text-[#083024] disabled:opacity-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#2bb673] px-3.5 text-xs font-bold text-[#083024] shadow-sm transition hover:bg-[#24a366] disabled:opacity-50"
             >
               <DownloadIcon />
-              {exporting ? `Đang xuất ${exporting}…` : "Tải Xuống"}
+              {exporting ? `Đang xuất ${exporting}…` : "Xuất SCORM"}
               <ChevronDownIcon />
             </button>
             {downloadOpen && !exporting ? (
-              <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-[#e2e8ef] bg-white py-1 shadow-lg">
+              <div
+                role="menu"
+                className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-[#e2e8ef] bg-white py-1 shadow-lg"
+              >
+                <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-[#8a98a8]">
+                  Gói học LMS
+                </p>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-semibold text-[#0f2a36] hover:bg-[#f3f6f9]"
+                  role="menuitem"
+                  className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[#f3f6f9]"
                   onClick={() => {
                     setDownloadOpen(false);
                     void exportScorm("1.2");
                   }}
                 >
-                  <DownloadIcon />
-                  SCORM 1.2
+                  <span className="mt-0.5 text-[#2bb673]">
+                    <DownloadIcon />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-semibold text-[#0f2a36]">
+                      SCORM 1.2
+                    </span>
+                    <span className="block text-[11px] font-medium text-[#8a98a8]">
+                      Phổ biến với hầu hết LMS
+                    </span>
+                  </span>
                 </button>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-semibold text-[#0f2a36] hover:bg-[#f3f6f9]"
+                  role="menuitem"
+                  className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[#f3f6f9]"
                   onClick={() => {
                     setDownloadOpen(false);
                     void exportScorm("2004");
                   }}
                 >
-                  <DownloadIcon />
-                  SCORM 2004
+                  <span className="mt-0.5 text-[#2bb673]">
+                    <DownloadIcon />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-semibold text-[#0f2a36]">
+                      SCORM 2004
+                    </span>
+                    <span className="block text-[11px] font-medium text-[#8a98a8]">
+                      Chuẩn mới hơn, hỗ trợ tốt hơn
+                    </span>
+                  </span>
                 </button>
               </div>
             ) : null}
@@ -1918,6 +1974,34 @@ function ReplaceIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function BackArrowIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M15 6 9 12l6 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PreviewIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
 }

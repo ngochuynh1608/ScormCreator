@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { Manrope, Sora } from "next/font/google";
+import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 
-const manrope = Manrope({
-  variable: "--font-manrope",
-  subsets: ["latin", "latin-ext"],
-});
-
-const sora = Sora({
-  variable: "--font-sora",
-  subsets: ["latin", "latin-ext"],
+/** Designed for Vietnamese diacritics — avoids mixed fallback fonts. */
+const beVietnam = Be_Vietnam_Pro({
+  variable: "--font-be-vietnam",
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -24,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`${manrope.variable} ${sora.variable} h-full`}>
+    <html lang="vi" className={`${beVietnam.variable} h-full`}>
       <body className="min-h-full antialiased">{children}</body>
     </html>
   );

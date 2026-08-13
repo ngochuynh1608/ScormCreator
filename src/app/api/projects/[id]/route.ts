@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { requireProjectAccess } from "@/lib/auth/guest";
 import { requireSession } from "@/lib/auth/guards";
-import { deleteProject, saveProject } from "@/lib/db";
+import { deleteProject, getProject, saveProject } from "@/lib/db";
 import { projectDir, projectThumbDir } from "@/lib/storage";
 import { collectPngThumbs } from "@/lib/pptx/render";
 import type { ContentSlide, Project, QuizSlide, Slide } from "@/lib/types";
@@ -124,14 +124,32 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const auth = await requireSession();
   if (auth.error) return auth.error;
   const { id } = await ctx.params;
-  const access = await requireProjectAccess(req, id);
-  if (access.error) return access.error;
-  if (!access.session || access.project.ownerId !== auth.session.userId) {
+
+  // Validate id shape to avoid path traversal via fs.rm
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      id,
+    )
+  ) {
+    return NextResponse.json({ error: "ID dự án không hợp lệ." }, { status: 400 });
+  }
+
+  const project = await getProject(id);
+
+  if (!project) {
+    // Folder/meta already gone (manual wipe, failed deploy, corrupt meta).
+    // Still attempt cleanup and succeed so the dashboard can drop the card.
+    await deleteProject(id);
+    return NextResponse.json({ ok: true, alreadyMissing: true });
+  }
+
+  if (project.ownerId && project.ownerId !== auth.session.userId) {
     return NextResponse.json(
       { error: "Chỉ chủ sở hữu mới được xóa dự án." },
       { status: 403 },
     );
   }
+
   await deleteProject(id);
   return NextResponse.json({ ok: true });
 }

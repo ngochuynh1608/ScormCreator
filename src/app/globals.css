@@ -16,8 +16,8 @@
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--ink);
-  --font-sans: var(--font-manrope);
-  --font-display: var(--font-sora);
+  --font-sans: var(--font-be-vietnam);
+  --font-display: var(--font-be-vietnam);
 }
 
 * {
@@ -36,14 +36,14 @@ body {
     radial-gradient(ellipse 80% 50% at 0% -10%, rgba(124, 196, 232, 0.35), transparent 55%),
     radial-gradient(ellipse 60% 40% at 100% 0%, rgba(43, 182, 115, 0.18), transparent 45%),
     linear-gradient(180deg, #f2f7fa 0%, var(--bg) 45%, var(--bg-deep) 100%);
-  font-family: var(--font-manrope), "Segoe UI", sans-serif;
+  font-family: var(--font-be-vietnam), "Segoe UI", system-ui, sans-serif;
 }
 
 h1,
 h2,
 h3,
 .brand-font {
-  font-family: var(--font-sora), "Segoe UI", sans-serif;
+  font-family: var(--font-be-vietnam), "Segoe UI", system-ui, sans-serif;
 }
 
 a {

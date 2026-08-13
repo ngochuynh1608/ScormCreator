@@ -31,6 +31,7 @@ function fromPlan(p: SubscriptionPlan): Draft {
 
 export default function AdminPlansPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [signupPlanId, setSignupPlanId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -38,6 +39,7 @@ export default function AdminPlansPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
+  const [signupDraft, setSignupDraft] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +49,9 @@ export default function AdminPlansPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Không tải được gói");
       setPlans(data.plans || []);
+      const nextSignup = typeof data.signupPlanId === "string" ? data.signupPlanId : "";
+      setSignupPlanId(nextSignup);
+      setSignupDraft(nextSignup);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lỗi tải dữ liệu");
     } finally {
@@ -114,6 +119,28 @@ export default function AdminPlansPage() {
     }
   }
 
+  async function saveSignupPlan() {
+    if (!signupDraft) return;
+    setBusyId("signup");
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/plans", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signupPlanId: signupDraft }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Lưu thất bại");
+      setSignupPlanId(data.signupPlanId || signupDraft);
+      setMessage("Đã lưu gói gán khi tạo tài khoản.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Lưu thất bại");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function remove(p: SubscriptionPlan) {
     if (!window.confirm(`Xóa gói "${p.name}"?`)) return;
     setBusyId(p.id);
@@ -142,6 +169,7 @@ export default function AdminPlansPage() {
           <h1 className="brand-font admin-title">Gói đăng ký</h1>
           <p className="admin-desc">
             Số trình chiếu, credit AI, học viên và giá tháng (0 = miễn phí).
+            Gói gán khi tạo tài khoản không tính thời gian hết hạn.
           </p>
         </div>
         <button
@@ -160,6 +188,38 @@ export default function AdminPlansPage() {
       {loading ? <p className="admin-muted">Đang tải…</p> : null}
       {error ? <p className="admin-alert-error">{error}</p> : null}
       {message ? <p className="admin-alert-ok">{message}</p> : null}
+
+      {!loading && plans.length > 0 ? (
+        <div className="admin-form-grid">
+          <label className="admin-label" style={{ gridColumn: "1 / -1" }}>
+            Gói gán khi tạo người dùng
+            <select
+              value={signupDraft}
+              onChange={(e) => setSignupDraft(e.target.value)}
+              className="admin-select"
+            >
+              {plans.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                  {p.monthlyPrice === 0
+                    ? " (Miễn phí)"
+                    : ` · ${p.monthlyPrice.toLocaleString("vi-VN")}đ/tháng`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="admin-form-actions">
+            <button
+              type="button"
+              disabled={Boolean(busyId) || !signupDraft || signupDraft === signupPlanId}
+              onClick={() => void saveSignupPlan()}
+              className="admin-btn-dark"
+            >
+              {busyId === "signup" ? "Đang lưu…" : "Lưu gói mặc định"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {(creating || editingId) && (
         <div className="admin-form-grid">
@@ -229,7 +289,12 @@ export default function AdminPlansPage() {
           <tbody>
             {plans.map((p) => (
               <tr key={p.id}>
-                <td className="admin-cell-strong">{p.name}</td>
+                <td className="admin-cell-strong">
+                  {p.name}
+                  {p.id === signupPlanId ? (
+                    <span className="admin-cell-muted"> · mặc định tạo TK</span>
+                  ) : null}
+                </td>
                 <td className="admin-cell-muted">{p.maxPresentations}</td>
                 <td className="admin-cell-muted">{p.everaiCredits}</td>
                 <td className="admin-cell-muted">{p.maxStudents}</td>

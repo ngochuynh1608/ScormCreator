@@ -902,7 +902,7 @@ a {
 
 .admin-header-inner {
   margin: 0 auto;
-  max-width: 1120px;
+  max-width: 1440px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -944,7 +944,7 @@ a {
 
 .admin-body {
   margin: 0 auto;
-  max-width: 1120px;
+  max-width: 1440px;
   display: grid;
   gap: 1.25rem;
   padding: 1.25rem;
@@ -1216,7 +1216,7 @@ a {
 
 .admin-table {
   width: 100%;
-  min-width: 640px;
+  min-width: 860px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.875rem;
@@ -1289,6 +1289,96 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
+}
+
+.admin-actions-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.admin-actions-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #d5e1ea;
+  border-radius: 0.55rem;
+  background: #fff;
+  color: #0a1f28;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-actions-trigger:hover:not(:disabled) {
+  background: #f3f7fa;
+  border-color: #c5d3de;
+}
+
+.admin-actions-trigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-actions-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  min-width: 11.5rem;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid #dfe7ef;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 42, 54, 0.14);
+  padding: 0.3rem;
+}
+
+.admin-actions-panel.is-portal {
+  position: fixed;
+  z-index: 100;
+  top: auto;
+  right: auto;
+}
+
+.admin-actions-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.55rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.825rem;
+  font-weight: 650;
+  color: #0a1f28;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-actions-item:hover {
+  background: #f3f7fa;
+}
+
+.admin-actions-item.is-warn {
+  color: #8a5a00;
+}
+
+.admin-actions-item.is-warn:hover {
+  background: #fff8ef;
+}
+
+.admin-actions-item.is-danger {
+  color: #c45c26;
+}
+
+.admin-actions-item.is-danger:hover {
+  background: #fff4ef;
+}
+
+.admin-actions-item svg {
+  flex-shrink: 0;
 }
 
 .admin-link {

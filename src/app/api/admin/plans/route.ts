@@ -4,7 +4,9 @@ import { requireAdmin } from "@/lib/auth/guards";
 import {
   createPlan,
   deletePlan,
+  getSignupPlan,
   listPlans,
+  setSignupPlanId,
   updatePlan,
 } from "@/lib/auth/plans";
 import { listUsers, updateUser } from "@/lib/auth/users";
@@ -14,8 +16,8 @@ export const runtime = "nodejs";
 export async function GET() {
   const auth = await requireAdmin();
   if (auth.error) return auth.error;
-  const plans = await listPlans();
-  return NextResponse.json({ plans });
+  const [plans, signup] = await Promise.all([listPlans(), getSignupPlan()]);
+  return NextResponse.json({ plans, signupPlanId: signup.id });
 }
 
 const planBody = z.object({
@@ -45,7 +47,8 @@ export async function POST(req: NextRequest) {
 }
 
 const patchSchema = planBody.partial().extend({
-  id: z.string().min(1),
+  id: z.string().min(1).optional(),
+  signupPlanId: z.string().min(1).optional(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -53,7 +56,14 @@ export async function PATCH(req: NextRequest) {
   if (auth.error) return auth.error;
   try {
     const body = patchSchema.parse(await req.json());
-    const { id, ...patch } = body;
+    if (body.signupPlanId && !body.id) {
+      const signupPlanId = await setSignupPlanId(body.signupPlanId);
+      return NextResponse.json({ signupPlanId });
+    }
+    if (!body.id) {
+      return NextResponse.json({ error: "Dữ liệu không hợp lệ." }, { status: 400 });
+    }
+    const { id, signupPlanId: _signup, ...patch } = body;
     const plan = await updatePlan(id, patch);
     return NextResponse.json({ plan });
   } catch (err) {

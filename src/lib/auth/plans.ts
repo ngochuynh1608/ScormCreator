@@ -43,6 +43,50 @@ export async function getFreePlan(): Promise<SubscriptionPlan> {
   return free;
 }
 
+const SIGNUP_SETTINGS_ID = "plans";
+
+type PlanSettingsDoc = { id: string; signupPlanId?: string | null };
+
+export async function getSignupPlanIdSetting(): Promise<string | null> {
+  const store = await getDocumentStore();
+  const raw = await store.get<PlanSettingsDoc>(
+    COLLECTIONS.settings,
+    SIGNUP_SETTINGS_ID,
+  );
+  return raw?.signupPlanId?.trim() || null;
+}
+
+export async function setSignupPlanId(planId: string): Promise<string> {
+  const plan = await getPlan(planId);
+  if (!plan) throw new Error("Không tìm thấy gói.");
+  const store = await getDocumentStore();
+  await store.put(COLLECTIONS.settings, {
+    id: SIGNUP_SETTINGS_ID,
+    signupPlanId: plan.id,
+  });
+  return plan.id;
+}
+
+export async function clearSignupPlanIdIf(planId: string): Promise<void> {
+  const current = await getSignupPlanIdSetting();
+  if (current !== planId) return;
+  const store = await getDocumentStore();
+  await store.put(COLLECTIONS.settings, {
+    id: SIGNUP_SETTINGS_ID,
+    signupPlanId: null,
+  });
+}
+
+/** Plan assigned to new accounts (no expiry). Falls back to the free plan. */
+export async function getSignupPlan(): Promise<SubscriptionPlan> {
+  const id = await getSignupPlanIdSetting();
+  if (id) {
+    const plan = await getPlan(id);
+    if (plan) return plan;
+  }
+  return getFreePlan();
+}
+
 export async function resolvePlanForUser(
   planId: string | null | undefined,
   options?: { expiresAt?: string | null; userId?: string },
@@ -129,5 +173,7 @@ export async function updatePlan(
 
 export async function deletePlan(id: string): Promise<boolean> {
   const store = await getDocumentStore();
-  return store.delete(COLLECTIONS.plans, id);
+  const ok = await store.delete(COLLECTIONS.plans, id);
+  if (ok) await clearSignupPlanIdIf(id);
+  return ok;
 }

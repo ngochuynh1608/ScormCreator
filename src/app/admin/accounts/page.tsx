@@ -1,16 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { PublicUser, SubscriptionPlan } from "@/lib/auth/types";
-import type { CreditSnapshot } from "@/lib/credits/types";
+import type { PublicUser } from "@/lib/auth/types";
 import { AdminActionsMenu } from "@/components/AdminActionsMenu";
 
 type Draft = {
   name: string;
   email: string;
   password: string;
-  planId: string;
-  planExpiresAt: string;
   locked: boolean;
 };
 
@@ -18,33 +15,11 @@ const emptyDraft = (): Draft => ({
   name: "",
   email: "",
   password: "",
-  planId: "",
-  planExpiresAt: "",
   locked: false,
 });
 
-function toDateInput(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "";
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function dateInputToIso(value: string): string | null {
-  const raw = value.trim();
-  if (!raw) return null;
-  const d = new Date(`${raw}T23:59:59.999`);
-  if (!Number.isFinite(d.getTime())) return null;
-  return d.toISOString();
-}
-
-export default function AdminUsersPage() {
-  const [users, setUsers] = useState<PublicUser[]>([]);
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [signupPlanId, setSignupPlanId] = useState("");
+export default function AdminAccountsPage() {
+  const [accounts, setAccounts] = useState<PublicUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -52,29 +27,15 @@ export default function AdminUsersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [credits, setCredits] = useState<Record<string, CreditSnapshot>>({});
-  const [grantUser, setGrantUser] = useState<PublicUser | null>(null);
-  const [grantAmount, setGrantAmount] = useState("100");
-  const [grantNote, setGrantNote] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [uRes, pRes] = await Promise.all([
-        fetch("/api/admin/users"),
-        fetch("/api/admin/plans"),
-      ]);
-      const uData = await uRes.json();
-      const pData = await pRes.json();
-      if (!uRes.ok) throw new Error(uData.error || "Không tải được users");
-      if (!pRes.ok) throw new Error(pData.error || "Không tải được gói");
-      setUsers(uData.users || []);
-      setCredits(uData.credits || {});
-      setPlans(pData.plans || []);
-      setSignupPlanId(
-        typeof pData.signupPlanId === "string" ? pData.signupPlanId : "",
-      );
+      const res = await fetch("/api/admin/accounts");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Không tải được tài khoản");
+      setAccounts(data.accounts || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lỗi tải dữ liệu");
     } finally {
@@ -86,26 +47,18 @@ export default function AdminUsersPage() {
     void load();
   }, [load]);
 
-  function planName(id: string | null) {
-    if (!id) return "—";
-    return plans.find((p) => p.id === id)?.name || id;
-  }
-
   async function create() {
     setBusyId("new");
     setMessage(null);
     setError(null);
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await fetch("/api/admin/accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: draft.name,
           email: draft.email,
           password: draft.password,
-          role: "user",
-          planId: draft.planId || undefined,
-          planExpiresAt: dateInputToIso(draft.planExpiresAt),
           locked: draft.locked,
         }),
       });
@@ -113,7 +66,7 @@ export default function AdminUsersPage() {
       if (!res.ok) throw new Error(data.error || "Tạo thất bại");
       setCreating(false);
       setDraft(emptyDraft());
-      setMessage("Đã thêm người dùng.");
+      setMessage("Đã thêm tài khoản quản trị.");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tạo thất bại");
@@ -131,13 +84,10 @@ export default function AdminUsersPage() {
         userId,
         name: draft.name,
         email: draft.email,
-        role: "user",
-        planId: draft.planId || null,
-        planExpiresAt: dateInputToIso(draft.planExpiresAt),
         locked: draft.locked,
       };
       if (draft.password.trim()) body.password = draft.password;
-      const res = await fetch("/api/admin/users", {
+      const res = await fetch("/api/admin/accounts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -146,7 +96,7 @@ export default function AdminUsersPage() {
       if (!res.ok) throw new Error(data.error || "Cập nhật thất bại");
       setEditingId(null);
       setDraft(emptyDraft());
-      setMessage("Đã cập nhật người dùng.");
+      setMessage("Đã cập nhật tài khoản quản trị.");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Cập nhật thất bại");
@@ -159,14 +109,14 @@ export default function AdminUsersPage() {
     setBusyId(u.id);
     setError(null);
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await fetch("/api/admin/accounts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: u.id, locked: !u.locked }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Cập nhật thất bại");
-      setUsers((prev) =>
+      setAccounts((prev) =>
         prev.map((x) => (x.id === u.id ? { ...x, locked: !u.locked } : x)),
       );
       setMessage(u.locked ? "Đã mở khóa tài khoản." : "Đã khóa tài khoản.");
@@ -178,18 +128,18 @@ export default function AdminUsersPage() {
   }
 
   async function remove(u: PublicUser) {
-    if (!window.confirm(`Xóa người dùng ${u.email}?`)) return;
+    if (!window.confirm(`Xóa tài khoản quản trị ${u.email}?`)) return;
     setBusyId(u.id);
     setError(null);
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await fetch("/api/admin/accounts", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: u.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Xóa thất bại");
-      setMessage("Đã xóa người dùng.");
+      setMessage("Đã xóa tài khoản quản trị.");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xóa thất bại");
@@ -205,54 +155,18 @@ export default function AdminUsersPage() {
       name: u.name,
       email: u.email,
       password: "",
-      planId: u.planId || "",
-      planExpiresAt: toDateInput(u.planExpiresAt),
       locked: u.locked,
     });
-  }
-
-  async function grant() {
-    if (!grantUser) return;
-    setBusyId(grantUser.id);
-    setError(null);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/admin/credits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "grant",
-          userId: grantUser.id,
-          amount: Number(grantAmount),
-          note: grantNote.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Cộng credit thất bại");
-      if (data.wallet) {
-        setCredits((prev) => ({ ...prev, [grantUser.id]: data.wallet }));
-      }
-      setMessage(
-        `Đã cộng ${Number(grantAmount).toLocaleString("vi-VN")} credit cho ${grantUser.email}.`,
-      );
-      setGrantUser(null);
-      setGrantAmount("100");
-      setGrantNote("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Cộng credit thất bại");
-    } finally {
-      setBusyId(null);
-    }
   }
 
   return (
     <section className="admin-panel">
       <div className="admin-panel-head">
         <div>
-          <h1 className="brand-font admin-title">Người dùng</h1>
+          <h1 className="brand-font admin-title">Tài khoản</h1>
           <p className="admin-desc">
-            Thêm, sửa, khóa tài khoản học viên và gán gói đăng ký. Tài khoản
-            quản trị nằm ở mục Tài khoản.
+            Tạo và quản lý tài khoản quản trị hệ thống. Không hiện trong danh
+            sách Người dùng.
           </p>
         </div>
         <button
@@ -260,11 +174,11 @@ export default function AdminUsersPage() {
           onClick={() => {
             setEditingId(null);
             setCreating(true);
-            setDraft({ ...emptyDraft(), planId: signupPlanId });
+            setDraft(emptyDraft());
           }}
           className="admin-btn-primary"
         >
-          + Thêm người dùng
+          + Thêm quản trị viên
         </button>
       </div>
 
@@ -290,40 +204,6 @@ export default function AdminUsersPage() {
             value={draft.password}
             onChange={(v) => setDraft({ ...draft, password: v })}
           />
-          <label className="admin-label">
-            Gói đăng ký
-            <select
-              value={draft.planId}
-              onChange={(e) => setDraft({ ...draft, planId: e.target.value })}
-              className="admin-select"
-            >
-              <option value="">
-                {creating ? "Gói mặc định khi tạo tài khoản" : "— Không gán —"}
-              </option>
-              {plans.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                  {p.monthlyPrice === 0
-                    ? " (Miễn phí)"
-                    : ` · ${p.monthlyPrice.toLocaleString("vi-VN")}đ/tháng`}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="admin-label">
-            Hết hạn gói
-            <input
-              type="date"
-              value={draft.planExpiresAt}
-              onChange={(e) =>
-                setDraft({ ...draft, planExpiresAt: e.target.value })
-              }
-              className="admin-input"
-            />
-            <span className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-[#8a98a8]">
-              Để trống = không hết hạn. Sau ngày này gói trả phí hạ về miễn phí.
-            </span>
-          </label>
           <label className="admin-check">
             <input
               type="checkbox"
@@ -366,38 +246,18 @@ export default function AdminUsersPage() {
             <tr>
               <th>Tên</th>
               <th>Email</th>
-              <th>Gói</th>
-              <th>Credit còn</th>
+              <th>Vai trò</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {accounts.map((u) => (
               <tr key={u.id}>
                 <td className="admin-cell-strong">{u.name}</td>
                 <td className="admin-cell-muted">{u.email}</td>
-                <td className="admin-cell-muted">
-                  {planName(u.planId)}
-                  {u.planExpiresAt ? (
-                    <span
-                      className={`block text-xs ${
-                        new Date(u.planExpiresAt).getTime() <= Date.now()
-                          ? "font-semibold text-[#c45c26]"
-                          : ""
-                      }`}
-                    >
-                      {new Date(u.planExpiresAt).getTime() <= Date.now()
-                        ? "Đã hết hạn "
-                        : "Hết hạn "}
-                      {new Date(u.planExpiresAt).toLocaleDateString("vi-VN")}
-                    </span>
-                  ) : (
-                    <span className="block text-xs">Không hết hạn</span>
-                  )}
-                </td>
-                <td className="admin-cell-muted">
-                  {(credits[u.id]?.available ?? 0).toLocaleString("vi-VN")}
+                <td>
+                  <span className="admin-badge admin-badge-admin">admin</span>
                 </td>
                 <td>
                   {u.locked ? (
@@ -407,14 +267,9 @@ export default function AdminUsersPage() {
                   )}
                 </td>
                 <td>
-                  <UserActionsMenu
+                  <AccountActionsMenu
                     user={u}
                     busy={busyId === u.id}
-                    onGrant={() => {
-                      setGrantUser(u);
-                      setGrantAmount("100");
-                      setGrantNote("");
-                    }}
                     onEdit={() => startEdit(u)}
                     onToggleLock={() => void toggleLock(u)}
                     onDelete={() => void remove(u)}
@@ -424,66 +279,10 @@ export default function AdminUsersPage() {
             ))}
           </tbody>
         </table>
+        {!loading && accounts.length === 0 ? (
+          <p className="admin-muted px-3 py-4">Chưa có tài khoản quản trị.</p>
+        ) : null}
       </div>
-
-      {grantUser ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-[#0f2a36]/45 p-4 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => !busyId && setGrantUser(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="brand-font text-xl font-semibold text-[#0f2a36]">
-              Cộng credit
-            </h2>
-            <p className="mt-1 text-sm text-[#5b6b7c]">
-              {grantUser.name} · {grantUser.email}. Hiện còn{" "}
-              {(credits[grantUser.id]?.available ?? 0).toLocaleString("vi-VN")}{" "}
-              credit.
-            </p>
-            <label className="admin-label mt-4">
-              Số credit
-              <input
-                type="text"
-                value={grantAmount}
-                onChange={(e) => setGrantAmount(e.target.value)}
-                className="admin-input"
-              />
-            </label>
-            <label className="admin-label mt-3">
-              Ghi chú (tuỳ chọn)
-              <input
-                type="text"
-                value={grantNote}
-                onChange={(e) => setGrantNote(e.target.value)}
-                className="admin-input"
-              />
-            </label>
-            <div className="admin-form-actions mt-4">
-              <button
-                type="button"
-                disabled={Boolean(busyId)}
-                onClick={() => void grant()}
-                className="admin-btn-dark"
-              >
-                {busyId ? "Đang cộng…" : "Cộng credit"}
-              </button>
-              <button
-                type="button"
-                disabled={Boolean(busyId)}
-                onClick={() => setGrantUser(null)}
-                className="admin-btn-muted"
-              >
-                Hủy
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
@@ -512,17 +311,15 @@ function Field({
   );
 }
 
-function UserActionsMenu({
+function AccountActionsMenu({
   user,
   busy,
-  onGrant,
   onEdit,
   onToggleLock,
   onDelete,
 }: {
   user: PublicUser;
   busy: boolean;
-  onGrant: () => void;
   onEdit: () => void;
   onToggleLock: () => void;
   onDelete: () => void;
@@ -531,18 +328,6 @@ function UserActionsMenu({
     <AdminActionsMenu busy={busy}>
       {(close) => (
         <>
-          <button
-            type="button"
-            role="menuitem"
-            className="admin-actions-item"
-            onClick={() => {
-              close();
-              onGrant();
-            }}
-          >
-            <CreditIcon />
-            Cộng credit
-          </button>
           <button
             type="button"
             role="menuitem"
@@ -582,21 +367,6 @@ function UserActionsMenu({
         </>
       )}
     </AdminActionsMenu>
-  );
-}
-
-function CreditIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M12 8v8M9.5 10.5c.6-1 1.5-1.5 2.5-1.5s2 .6 2 1.6c0 2.2-4.5 1.2-4.5 3.6 0 1 .9 1.8 2.5 1.8s1.9-.5 2.5-1.3"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 

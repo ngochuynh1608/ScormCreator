@@ -303,8 +303,8 @@ export function AccountSubscriptionPanel() {
     },
     {
       label: "Credit TTS",
-      detail: "Còn lại / Tổng (gói + nạp)",
-      value: ratioLabel(available, ceiling),
+      detail: "Tổng credit",
+      value: available.toLocaleString("vi-VN"),
       percent: barPercent(ceiling - available, ceiling),
     },
     {

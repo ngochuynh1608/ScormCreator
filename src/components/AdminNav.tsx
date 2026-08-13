@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
-  { href: "/admin/users", label: "Người dùng", hint: "Tài khoản & gói" },
+  { href: "/admin/users", label: "Người dùng", hint: "Học viên & gói" },
+  { href: "/admin/accounts", label: "Tài khoản", hint: "Quản trị hệ thống" },
   { href: "/admin/plans", label: "Gói đăng ký", hint: "Hạn mức & giá" },
   { href: "/admin/credits", label: "Credit", hint: "Gói nạp & đơn" },
   { href: "/admin/tts", label: "Giọng đọc AI", hint: "API & mặc định" },

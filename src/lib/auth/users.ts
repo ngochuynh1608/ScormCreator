@@ -83,6 +83,7 @@ export async function createUser(input: {
   role?: UserRole;
   locked?: boolean;
   planId?: string | null;
+  planExpiresAt?: string | null;
 }): Promise<AuthUser> {
   const store = await getDocumentStore();
   const email = input.email.trim().toLowerCase();
@@ -93,6 +94,11 @@ export async function createUser(input: {
   const role: UserRole =
     input.role ||
     (adminEmailsFromEnv().includes(email) ? "admin" : "user");
+  let planId = input.planId ?? null;
+  if (input.planId === undefined && role !== "admin") {
+    const { getSignupPlan } = await import("./plans");
+    planId = (await getSignupPlan()).id;
+  }
   const user: AuthUser = {
     id: uuidv4(),
     email,
@@ -102,8 +108,8 @@ export async function createUser(input: {
     createdAt: new Date().toISOString(),
     role,
     locked: Boolean(input.locked),
-    planId: input.planId ?? null,
-    planExpiresAt: null,
+    planId,
+    planExpiresAt: input.planExpiresAt ?? null,
   };
   await store.put(COLLECTIONS.users, user);
   return user;

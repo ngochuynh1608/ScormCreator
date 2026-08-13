@@ -4,12 +4,13 @@ import { HomeUploadHero } from "@/components/HomeUploadHero";
 import { getSession } from "@/lib/auth/session";
 import { findUserById, toPublicUser } from "@/lib/auth/users";
 import { listPlans } from "@/lib/auth/plans";
+import { listActiveFaqs } from "@/lib/faq";
 
 export default async function HomePage() {
   const session = await getSession();
   const authUser = session ? await findUserById(session.userId) : null;
   const user = authUser ? toPublicUser(authUser) : null;
-  const plans = await listPlans();
+  const [plans, faqs] = await Promise.all([listPlans(), listActiveFaqs()]);
 
   return (
     <main className="home-page min-h-screen">
@@ -267,42 +268,21 @@ export default async function HomePage() {
             Những câu hỏi hay gặp khi chuyển PPTX thành bài giảng SCORM.
           </p>
           <div className="home-faq mt-10 space-y-3">
-            <details className="home-faq-item" open>
-              <summary>ScormCreator hỗ trợ định dạng nào?</summary>
-              <p>
-                Upload file <strong>.pptx</strong> hoặc <strong>.pdf</strong>.
-                Hệ thống tách slide, ảnh và ghi chú để bạn chỉnh sửa trước khi
-                xuất SCORM.
+            {faqs.map((item, index) => (
+              <details
+                key={item.id}
+                className="home-faq-item"
+                open={index === 0}
+              >
+                <summary>{item.question}</summary>
+                <p className="whitespace-pre-wrap">{item.answer}</p>
+              </details>
+            ))}
+            {faqs.length === 0 ? (
+              <p className="text-sm text-[#5b7380]">
+                Chưa có câu hỏi thường gặp.
               </p>
-            </details>
-            <details className="home-faq-item">
-              <summary>Xuất được SCORM phiên bản nào?</summary>
-              <p>
-                Hỗ trợ <strong>SCORM 1.2</strong> và <strong>SCORM 2004</strong>
-                — phù hợp hầu hết LMS doanh nghiệp và trường học.
-              </p>
-            </details>
-            <details className="home-faq-item">
-              <summary>Giọng đọc AI hoạt động thế nào?</summary>
-              <p>
-                Bạn viết hoặc chỉnh kịch bản cho từng slide, chọn giọng, rồi tạo
-                audio. Audio gắn vào bài giảng khi xuất SCORM.
-              </p>
-            </details>
-            <details className="home-faq-item">
-              <summary>Có cần đăng nhập ngay khi upload không?</summary>
-              <p>
-                Có thể bắt đầu upload và mở editor trước. Đăng nhập khi muốn lưu
-                dài hạn vào tài khoản và quản lý nhiều trình chiếu.
-              </p>
-            </details>
-            <details className="home-faq-item">
-              <summary>Làm sao nâng cấp gói?</summary>
-              <p>
-                Vào <strong>Tài khoản → Gói đăng ký</strong> sau khi đăng nhập,
-                hoặc chọn gói tại mục Bảng giá trên trang này.
-              </p>
-            </details>
+            ) : null}
           </div>
         </div>
       </section>

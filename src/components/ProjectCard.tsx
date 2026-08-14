@@ -168,7 +168,13 @@ export function ProjectCard({
         </div>
         <div className="p-5">
           <p className="text-xs font-bold uppercase tracking-wide text-[#8a98a8]">
-            {project.status === "ready" ? "Sẵn sàng" : project.status}
+            {project.status === "ready"
+              ? "Sẵn sàng"
+              : project.status === "processing"
+                ? "Đang xử lý"
+                : project.status === "error"
+                  ? "Lỗi"
+                  : project.status}
           </p>
           {renaming ? (
             <div

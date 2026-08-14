@@ -10,12 +10,13 @@ import {
 import { assertCanCreatePresentation, presentationLimitResponse } from "@/lib/auth/quota";
 import { saveProject } from "@/lib/db";
 import { ensureProjectDirs, projectDir } from "@/lib/storage";
-import { parsePptxToSlides } from "@/lib/pptx/parse";
-import { parsePdfToSlides } from "@/lib/pptx/pdf-parse";
+import { putObjectFile } from "@/lib/object-storage";
+import { enqueueConvertJob } from "@/lib/jobs/queues";
 import type { Project } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 900;
+/** Upload only stores the file and enqueues convert — keep short. */
+export const maxDuration = 120;
 
 const MAX_MB = Number(process.env.MAX_UPLOAD_MB || 500);
 
@@ -62,11 +63,16 @@ export async function POST(req: NextRequest) {
     await ensureProjectDirs(projectId);
     const buffer = Buffer.from(await file.arrayBuffer());
     const originalName = isPdf ? "original.pdf" : "original.pptx";
-    await fs.writeFile(path.join(projectDir(projectId), originalName), buffer);
-
-    const slides = isPdf
-      ? await parsePdfToSlides(projectId, buffer)
-      : await parsePptxToSlides(projectId, buffer);
+    const absOriginal = path.join(projectDir(projectId), originalName);
+    await fs.writeFile(absOriginal, buffer);
+    await putObjectFile(
+      projectId,
+      originalName,
+      absOriginal,
+      isPdf
+        ? "application/pdf"
+        : "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ).catch(() => undefined);
 
     const now = new Date().toISOString();
     const title =
@@ -76,20 +82,41 @@ export async function POST(req: NextRequest) {
     const project: Project = {
       id: projectId,
       title,
-      status: "ready",
+      status: "processing",
       createdAt: now,
       updatedAt: now,
       originalFileName: name,
-      slides,
+      slides: [],
       ownerId: session?.userId,
       guestClaimToken,
     };
     await saveProject(project);
 
-    const res = NextResponse.json({
-      project: { ...project, guestClaimToken: undefined },
-      requiresAuth: !session,
-    });
+    try {
+      await enqueueConvertJob({
+        projectId,
+        kind: isPdf ? "pdf" : "pptx",
+        mode: "ingest",
+      });
+    } catch (err) {
+      const status = (err as Error & { status?: number }).status || 500;
+      project.status = "error";
+      project.errorMessage =
+        err instanceof Error ? err.message : "Không xếp hàng xử lý được.";
+      await saveProject(project);
+      return NextResponse.json(
+        { error: project.errorMessage, project: { ...project, guestClaimToken: undefined } },
+        { status },
+      );
+    }
+
+    const res = NextResponse.json(
+      {
+        project: { ...project, guestClaimToken: undefined },
+        requiresAuth: !session,
+      },
+      { status: 201 },
+    );
     if (guestClaimToken) {
       attachGuestClaimCookie(res, projectId, guestClaimToken);
     }

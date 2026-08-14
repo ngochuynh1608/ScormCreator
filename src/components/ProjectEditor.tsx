@@ -457,6 +457,15 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     void loadCredits();
   }, [load, loadTtsSettings, loadCredits]);
 
+  /** Poll while PPTX/PDF convert is queued or running on the worker. */
+  useEffect(() => {
+    if (project?.status !== "processing") return;
+    const id = window.setInterval(() => {
+      void load().catch(() => undefined);
+    }, 2500);
+    return () => window.clearInterval(id);
+  }, [project?.status, load]);
+
   const refreshBackgroundTts = useCallback(async () => {
     try {
       const res = await fetch(
@@ -1123,11 +1132,37 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ version }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Xuất SCORM thất bại");
       }
-      const blob = await res.blob();
+      const exportId = data.exportId as string;
+      if (!exportId) throw new Error("Không nhận được mã job xuất.");
+
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const st = await fetch(
+          `/api/projects/${projectId}/export?exportId=${encodeURIComponent(exportId)}`,
+        );
+        const statusData = await st.json().catch(() => ({}));
+        if (!st.ok) {
+          throw new Error(statusData.error || "Không kiểm tra được trạng thái xuất.");
+        }
+        if (statusData.status === "error") {
+          throw new Error(statusData.errorMessage || "Xuất SCORM thất bại");
+        }
+        if (statusData.status === "done") break;
+        setMessage(`Đang đóng gói SCORM ${version}…`);
+      }
+
+      const dl = await fetch(
+        `/api/projects/${projectId}/export?exportId=${encodeURIComponent(exportId)}&download=1`,
+      );
+      if (!dl.ok) {
+        const errBody = await dl.json().catch(() => ({}));
+        throw new Error(errBody.error || "Tải file SCORM thất bại");
+      }
+      const blob = await dl.blob();
       if (!blob.size) throw new Error("File SCORM rỗng.");
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1238,6 +1273,67 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     return (
       <div className="flex min-h-screen items-center justify-center text-[var(--muted)]">
         Đang tải dự án…
+      </div>
+    );
+  }
+
+  if (project.status === "processing") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+        <Link
+          href="/dashboard"
+          className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]"
+        >
+          ScormCreator
+        </Link>
+        <h1 className="brand-font text-2xl font-semibold text-[var(--panel)]">
+          Đang xử lý file
+          <span className="loading-dots" aria-hidden>
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
+          </span>
+        </h1>
+      </div>
+    );
+  }
+
+  if (project.status === "error") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+        <h1 className="brand-font text-2xl font-semibold text-[var(--panel)]">
+          Xử lý file thất bại
+        </h1>
+        <p className="max-w-md text-sm text-red-700">
+          {project.errorMessage || "Không chuyển đổi được PPTX/PDF."}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            className="rounded-full border border-[#d7e2ea] bg-white px-4 py-2 text-sm font-semibold"
+            onClick={() => {
+              void (async () => {
+                const res = await fetch(`/api/projects/${projectId}/rerender`, {
+                  method: "POST",
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  setMessage(data.error || "Thử lại thất bại");
+                  return;
+                }
+                await load();
+              })();
+            }}
+          >
+            Thử render lại
+          </button>
+          <Link
+            href="/dashboard"
+            className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white"
+          >
+            Về danh sách
+          </Link>
+        </div>
       </div>
     );
   }

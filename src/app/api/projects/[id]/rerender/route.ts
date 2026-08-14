@@ -2,11 +2,12 @@ import fs from "fs/promises";
 import path from "path";
 import { getProject, saveProject } from "@/lib/db";
 import { projectDir, projectThumbDir } from "@/lib/storage";
-import { collectPngThumbs, renderSlidesAsImages } from "@/lib/pptx/render";
+import { collectPngThumbs } from "@/lib/pptx/render";
+import { enqueueConvertJob } from "@/lib/jobs/queues";
 import type { ContentSlide } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 900;
+export const maxDuration = 60;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -50,16 +51,13 @@ export async function POST(_req: Request, ctx: Ctx) {
   const dir = projectDir(id);
   const pptxAbs = path.join(dir, "original.pptx");
   const pdfAbs = path.join(dir, "original.pdf");
-  let sourceAbs: string | null = null;
   let kind: "pptx" | "pdf" | null = null;
   try {
     await fs.access(pptxAbs);
-    sourceAbs = pptxAbs;
     kind = "pptx";
   } catch {
     try {
       await fs.access(pdfAbs);
-      sourceAbs = pdfAbs;
       kind = "pdf";
     } catch {
       return Response.json(
@@ -69,43 +67,29 @@ export async function POST(_req: Request, ctx: Ctx) {
     }
   }
 
-  const contentCount = project.slides.filter((s) => s.type === "content").length;
+  project.status = "processing";
+  project.errorMessage = undefined;
+  await saveProject(project);
 
   try {
-    if (kind === "pdf" && sourceAbs) {
-      const { parsePdfToSlides } = await import("@/lib/pptx/pdf-parse");
-      const buf = await fs.readFile(sourceAbs);
-      const slides = await parsePdfToSlides(id, buf);
-      // Keep non-content slides (quizzes) after regenerated content order remap is complex —
-      // only refresh thumbs for existing content slides by order index.
-      const content = project.slides.filter(
-        (s): s is ContentSlide => s.type === "content",
-      );
-      for (const slide of content) {
-        const freshly = slides[slide.order];
-        if (freshly?.thumbnailPath) {
-          slide.thumbnailPath = freshly.thumbnailPath;
-          slide.blank = false;
-        }
-      }
-      await saveProject(project);
-    } else if (sourceAbs) {
-      await renderSlidesAsImages(id, sourceAbs, contentCount);
-    }
+    await enqueueConvertJob({
+      projectId: id,
+      kind: kind!,
+      mode: "rerender",
+    });
   } catch (err) {
-    // Continue to heal whatever PNGs exist
-    console.warn("[rerender]", err instanceof Error ? err.message : err);
-  }
-
-  const result = await healThumbnails(id);
-  if (!result) {
-    return Response.json({ error: "Không tìm thấy dự án." }, { status: 404 });
+    const status = (err as Error & { status?: number }).status || 500;
+    project.status = "error";
+    project.errorMessage =
+      err instanceof Error ? err.message : "Không xếp hàng render được.";
+    await saveProject(project);
+    return Response.json({ error: project.errorMessage }, { status });
   }
 
   return Response.json({
-    project: result.project,
-    healed: result.healed,
-    pngCount: result.pngCount,
+    project,
+    queued: true,
+    message: "Đã xếp hàng render lại thumbnail.",
   });
 }
 

@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["mupdf", "better-sqlite3"],
+  output: "standalone",
+  serverExternalPackages: [
+    "mupdf",
+    "better-sqlite3",
+    "bullmq",
+    "ioredis",
+    "pg",
+    "@aws-sdk/client-s3",
+  ],
   experimental: {
     serverActions: {
       bodySizeLimit: "500mb",

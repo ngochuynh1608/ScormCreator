@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.cursor
+data
+*.md
+!docs/RUNBOOK.md
+.env
+.env.*
+!.env.example
+agent-transcripts

@@ -82,7 +82,7 @@ export function UploadZone() {
           <span className="brand-font text-xl font-semibold text-[var(--panel)] sm:text-2xl">
             {busy === "upload" ? (
               <>
-                Đang mở trang chỉnh sửa
+                Đang tải lên
                 <span className="loading-dots" aria-hidden>
                   <span>.</span>
                   <span>.</span>

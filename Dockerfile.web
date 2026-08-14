@@ -42,8 +42,12 @@ RUN apt-get update \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-USER nextjs
+COPY deploy/web-entrypoint.sh /usr/local/bin/web-entrypoint.sh
+RUN chmod +x /usr/local/bin/web-entrypoint.sh
+# Entrypoint runs as root to fix /data volume ownership, then drops to nextjs.
+USER root
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENTRYPOINT ["/usr/local/bin/web-entrypoint.sh"]
 CMD ["node", "server.js"]

@@ -54,11 +54,20 @@ docker compose exec worker npx tsx scripts/retention.ts
 
 Env: `EXPORT_RETENTION_DAYS`, `GUEST_PROJECT_RETENTION_DAYS`.
 
-## Backup
+## Permission denied on `/data/projects` (EACCES)
 
-- Postgres volume `postgres_data` — `pg_dump` or volume snapshot
-- MinIO volume `minio_data` — bucket sync / snapshot
-- Shared `app_data` — project files + SQLite fallback if unused
+Web runs as uid `1001` (`nextjs`). Fresh Docker volumes are often `root`-owned.
+
+Immediate fix (no rebuild):
+
+```bash
+docker compose exec -u root web chown -R 1001:1001 /data
+# if exec fails (old image):
+docker run --rm -v scormcreator_app_data:/data alpine chown -R 1001:1001 /data
+docker compose restart web worker
+```
+
+Current images use `deploy/web-entrypoint.sh` to chown `/data` on every web start.
 
 ## Scale later
 

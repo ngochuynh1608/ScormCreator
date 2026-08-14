@@ -9,17 +9,40 @@ export function postgresConfigured() {
   return Boolean(process.env.DATABASE_URL?.trim());
 }
 
+async function loadSqliteStore(): Promise<DocumentStore | null> {
+  try {
+    const mod = await import("./sqlite");
+    return mod.createSqliteDocumentStore();
+  } catch (err) {
+    console.warn(
+      "[store] better-sqlite3 unavailable — using JSON file store.",
+      err instanceof Error ? err.message : err,
+    );
+    return null;
+  }
+}
+
 /**
  * App document store (users, plans, usage, settings, jobs).
- * Uses Postgres when DATABASE_URL is set; otherwise SQLite.
- * Dynamic imports avoid loading better-sqlite3 in Postgres-only containers.
+ * Postgres when DATABASE_URL is set; else SQLite; else JSON files (Windows without VS).
  */
 export async function getDocumentStore(): Promise<DocumentStore> {
   if (!storePromise) {
     storePromise = (async () => {
-      const store = postgresConfigured()
-        ? (await import("./postgres")).createPostgresDocumentStore()
-        : (await import("./sqlite")).createSqliteDocumentStore();
+      let store: DocumentStore;
+      if (postgresConfigured()) {
+        store = (await import("./postgres")).createPostgresDocumentStore();
+      } else {
+        const sqlite = await loadSqliteStore();
+        if (sqlite) {
+          store = sqlite;
+        } else {
+          const { createJsonDocumentStore, ensureJsonStoreDirs } =
+            await import("./json-store");
+          await ensureJsonStoreDirs();
+          store = createJsonDocumentStore();
+        }
+      }
       await migrateJsonIntoStore(store);
       return store;
     })();

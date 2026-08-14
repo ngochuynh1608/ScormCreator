@@ -13,10 +13,16 @@ Công cụ web chuyển **PPTX → bài giảng SCORM** có giọng đọc AI (m
 
 ## Chạy local
 
+**Khuyến nghị:** Node.js **22 LTS** (Docker cũng dùng Node 22). Node 24 trên Windows thường buộc biên dịch `better-sqlite3` và cần Visual Studio C++.
+
 ```bash
 npm install
 npm run dev
 ```
+
+Nếu `better-sqlite3` không cài được (thiếu Visual Studio), `npm install` vẫn xong — app dùng **JSON store** local. Docker/VPS dùng Postgres nên không ảnh hưởng production.
+
+Windows (nếu muốn SQLite native): cài [Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) với workload **Desktop development with C++**, hoặc cài Node 22 LTS rồi `npm install` lại.
 
 Mở [http://localhost:3000](http://localhost:3000).
 

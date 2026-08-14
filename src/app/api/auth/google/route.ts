@@ -5,6 +5,7 @@ import {
   googleAuthorizeUrl,
 } from "@/lib/auth/google";
 import { appOrigin } from "@/lib/auth/guards";
+import { cookieSecureFlag } from "@/lib/auth/cookies";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
   res.cookies.set("google_oauth_state", state, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecureFlag(),
     path: "/",
     maxAge: 600,
   });

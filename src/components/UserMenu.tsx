@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+  HistoryIcon,
+  LogoutIcon,
+  PlanIcon,
+  ProfileIcon,
+} from "./account-icons";
 
 export type UserMenuUser = {
   id: string;
@@ -91,7 +97,7 @@ export function UserMenu({
             ref={menuRef}
             role="menu"
             style={{ top: menuPos.top, right: menuPos.right }}
-            className={`fixed z-[100] w-56 overflow-hidden rounded-2xl border py-1 shadow-lg ${
+            className={`fixed z-[100] w-64 overflow-hidden rounded-2xl border py-1 shadow-lg ${
               isDark
                 ? "border-white/15 bg-[#123040] text-[#edf3f7]"
                 : "border-[#dfe7ef] bg-white text-[#0f2a36]"
@@ -114,37 +120,40 @@ export function UserMenu({
             <Link
               role="menuitem"
               href="/account/profile"
-              className={`block px-4 py-2.5 text-sm font-semibold ${
+              className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold ${
                 isDark ? "hover:bg-white/10" : "hover:bg-[#f3f7fa]"
               }`}
               onClick={() => setOpen(false)}
             >
+              <ProfileIcon />
               Hồ sơ
             </Link>
             <Link
               role="menuitem"
               href="/account/subscription"
-              className={`block px-4 py-2.5 text-sm font-semibold ${
+              className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold ${
                 isDark ? "hover:bg-white/10" : "hover:bg-[#f3f7fa]"
               }`}
               onClick={() => setOpen(false)}
             >
-              Gói đăng ký
+              <PlanIcon />
+              Gói đăng ký & Credit
             </Link>
             <Link
               role="menuitem"
               href="/account/payments"
-              className={`block px-4 py-2.5 text-sm font-semibold ${
+              className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold ${
                 isDark ? "hover:bg-white/10" : "hover:bg-[#f3f7fa]"
               }`}
               onClick={() => setOpen(false)}
             >
+              <HistoryIcon />
               Lịch sử thanh toán
             </Link>
             <button
               type="button"
               role="menuitem"
-              className={`block w-full border-t px-4 py-2.5 text-left text-sm font-semibold ${
+              className={`flex w-full items-center gap-2.5 border-t px-4 py-2.5 text-left text-sm font-semibold ${
                 isDark
                   ? "border-white/10 text-[#ffb4a2] hover:bg-white/10"
                   : "border-[#eef2f6] text-[#c45c26] hover:bg-[#fff4ef]"
@@ -157,6 +166,7 @@ export function UserMenu({
                 });
               }}
             >
+              <LogoutIcon />
               Đăng xuất
             </button>
           </div>,

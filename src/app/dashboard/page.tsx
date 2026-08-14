@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { CreditBalanceButton } from "@/components/CreditBalanceButton";
 import { ProjectCard } from "@/components/ProjectCard";
 import { UploadZone } from "@/components/UploadZone";
 import { UserMenu } from "@/components/UserMenu";
@@ -101,17 +102,12 @@ export default function DashboardPage() {
         <div className="flex flex-wrap items-center gap-2">
           {usage ? (
             <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href="/account/payments"
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#c9d8e2] bg-white px-3 py-1.5 text-xs font-semibold text-[#0f2a36]"
-                title="Credit còn lại — nạp thêm"
-              >
-                <CreditCoinIcon />
-                {usage.creditsAvailable.toLocaleString("vi-VN")}
-              </Link>
-              <span className="rounded-full border border-[#c9d8e2] bg-white px-3 py-1.5 text-xs font-semibold text-[#0f2a36]">
+              <CreditBalanceButton
+                creditsAvailable={usage.creditsAvailable}
+              />
+              <span className="inline-flex h-9 items-center rounded-full border border-[#c9d8e2] bg-white px-3 text-sm font-bold leading-none text-[#0f2a36]">
                 Trình chiếu {usage.presentationsUsed.toLocaleString("vi-VN")}
-                <span className="font-medium text-[#8a98a8]">
+                <span className="font-bold text-[#8a98a8]">
                   {" "}
                   / {usage.presentationsLimit.toLocaleString("vi-VN")}
                 </span>
@@ -262,32 +258,5 @@ export default function DashboardPage() {
         </div>
       ) : null}
     </main>
-  );
-}
-
-function CreditCoinIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-      className="text-[#2bb673]"
-    >
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M14.2 8.6c-.5-.4-1.2-.6-2.2-.6-1.8 0-3 1-3 2.3 0 1.1.8 1.8 2.6 2.2l.8.2c1.2.3 1.6.6 1.6 1.2 0 .7-.7 1.2-1.9 1.2-1 0-1.7-.3-2.3-.8"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 7.2v1.4M12 15.4v1.5"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }

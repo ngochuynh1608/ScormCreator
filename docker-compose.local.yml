@@ -1,0 +1,9 @@
+# Local overrides: avoid binding host :80 (needs admin on Windows).
+# Usage: docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.local.yml up -d --build
+
+services:
+  nginx:
+    ports: !override
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]

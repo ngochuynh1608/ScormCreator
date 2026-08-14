@@ -30,14 +30,27 @@ Dữ liệu lưu tại `./data/projects/`.
 
 Upload PPTX/PDF chạy **async**: API trả project `processing`, worker (LibreOffice) xử lý nền. Không có Redis thì convert chạy in-process sau khi trả response (dev). Có Redis: `npm run worker`.
 
-## Docker (Phương án 1 — 1 VPS)
+## Chạy local giống production (Docker)
+
+Cần [Docker Desktop](https://www.docker.com/products/docker-desktop/) (WSL2 trên Windows).
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
+# 1) Cài Docker Desktop, mở app, đợi engine Running
+# 2) File môi trường cho Compose
+cp .env.docker.example .env.docker
+
+# 3) Build + chạy: nginx, web, worker, redis, postgres, minio
+npm run docker:up
+
+# App: http://localhost:8080  (local map 8080→80, tránh chiếm port 80 trên Windows)
+# MinIO console: http://localhost:9001
+npm run docker:ps
+npm run docker:logs
 ```
 
-Chi tiết vận hành: [docs/RUNBOOK.md](docs/RUNBOOK.md).
+Tắt stack: `npm run docker:down`.
+
+Khác `npm run dev`: có Redis queue, worker LibreOffice, Postgres, MinIO — giống VPS.
 
 ## Stack
 

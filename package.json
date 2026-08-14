@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "worker": "tsx scripts/worker.ts",
-    "retention": "tsx scripts/retention.ts"
+    "retention": "tsx scripts/retention.ts",
+    "docker:up": "docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.local.yml up -d --build",
+    "docker:down": "docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.local.yml down",
+    "docker:logs": "docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.local.yml logs -f web worker nginx",
+    "docker:ps": "docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.local.yml ps"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1111.0",

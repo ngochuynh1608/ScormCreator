@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import {
+  getEnabledVoices,
   getTtsSettings,
   maskApiKey,
   saveTtsSettings,
 } from "@/lib/tts/settings";
-import { EVERAI_MODELS, EVERAI_VOICES } from "@/lib/tts/voices";
+import { listExistingSampleCodes } from "@/lib/tts/samples";
+import { EVERAI_MODELS, EVERAI_VOICES, voiceSupportsModelId } from "@/lib/tts/voices";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   // Public status for the editor (guest + logged-in). Never returns the raw key.
-  // API key itself is shared from admin / env via getEveraiApiKey() on the server.
   const settings = await getTtsSettings();
   const envConfigured = Boolean(process.env.EVERAI_API_KEY?.trim());
   const configured = Boolean(settings.everaiApiKey) || envConfigured;
+  const enabledVoices = getEnabledVoices(settings);
+  const sampleCodes = await listExistingSampleCodes(
+    EVERAI_VOICES.map((v) => v.code),
+  );
   return NextResponse.json({
     configured,
     source: settings.everaiApiKey
@@ -29,7 +34,20 @@ export async function GET() {
         : "",
     defaultVoiceCode: settings.defaultVoiceCode,
     defaultModelId: settings.defaultModelId,
-    voices: EVERAI_VOICES,
+    sampleText: settings.sampleText,
+    enabledVoiceCodes: settings.enabledVoiceCodes,
+    /** Voices available in the editor (admin-selected). */
+    voices: enabledVoices.map((v) => ({
+      ...v,
+      supportsModel: voiceSupportsModelId(v.code),
+      hasSample: sampleCodes.includes(v.code),
+    })),
+    /** Full catalog for admin configuration. */
+    allVoices: EVERAI_VOICES.map((v) => ({
+      ...v,
+      supportsModel: voiceSupportsModelId(v.code),
+      hasSample: sampleCodes.includes(v.code),
+    })),
     models: EVERAI_MODELS,
   });
 }
@@ -42,10 +60,11 @@ export async function PUT(req: NextRequest) {
     everaiApiKey?: string;
     defaultVoiceCode?: string;
     defaultModelId?: string;
+    enabledVoiceCodes?: string[];
+    sampleText?: string;
   } = {};
 
   if (typeof body.apiKey === "string") {
-    // Only update key when a non-empty value is sent
     if (body.apiKey.trim()) patch.everaiApiKey = body.apiKey;
   }
   if (typeof body.everaiApiKey === "string") {
@@ -60,6 +79,12 @@ export async function PUT(req: NextRequest) {
   if (typeof body.defaultModelId === "string") {
     patch.defaultModelId = body.defaultModelId;
   }
+  if (Array.isArray(body.enabledVoiceCodes)) {
+    patch.enabledVoiceCodes = body.enabledVoiceCodes;
+  }
+  if (typeof body.sampleText === "string") {
+    patch.sampleText = body.sampleText;
+  }
 
   const saved = await saveTtsSettings(patch);
   return NextResponse.json({
@@ -68,5 +93,7 @@ export async function PUT(req: NextRequest) {
     apiKeyPreview: maskApiKey(saved.everaiApiKey),
     defaultVoiceCode: saved.defaultVoiceCode,
     defaultModelId: saved.defaultModelId,
+    enabledVoiceCodes: saved.enabledVoiceCodes,
+    sampleText: saved.sampleText,
   });
 }

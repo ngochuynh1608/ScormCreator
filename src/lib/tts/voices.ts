@@ -134,14 +134,33 @@ export const EVERAI_VOICES: EveraiVoice[] = [
 ];
 
 export const EVERAI_MODELS = [
-  { id: "everai-v1.6", label: "everai-v1.6 · Tiêu chuẩn (~833 credit/phút)" },
-  { id: "everai-v1.5", label: "everai-v1.5 · Tiêu chuẩn (~833 credit/phút)" },
+  {
+    id: "everai-v1.6",
+    label: "everai-v1.6 · Tiêu chuẩn (~833 credit/phút)",
+    locales: ["vi", "en"] as const,
+    supportsStandardVoices: true,
+  },
+  {
+    id: "everai-v1.5",
+    label: "everai-v1.5 · Tiêu chuẩn (~833 credit/phút)",
+    locales: ["vi", "en"] as const,
+    supportsStandardVoices: true,
+  },
   {
     id: "everai-v1.5-turbo",
     label: "everai-v1.5-turbo · Turbo (~416 credit/phút)",
+    locales: ["vi", "en"] as const,
+    supportsStandardVoices: true,
   },
-  { id: "everai-v1", label: "everai-v1 · Tiêu chuẩn (~833 credit/phút)" },
+  {
+    id: "everai-v1",
+    label: "everai-v1 · Tiêu chuẩn (~833 credit/phút)",
+    locales: ["vi", "en"] as const,
+    supportsStandardVoices: true,
+  },
 ] as const;
+
+export type EveraiModelId = (typeof EVERAI_MODELS)[number]["id"];
 
 export const DEFAULT_VOICE = "vi_female_kieunhi_mn";
 export const DEFAULT_MODEL = "everai-v1.6";
@@ -153,6 +172,33 @@ export const STANDARD_CREDITS_PER_HOUR = 50_000;
 
 export function findEveraiVoice(code: string): EveraiVoice | undefined {
   return EVERAI_VOICES.find((v) => v.code === code);
+}
+
+export function findEveraiModel(modelId: string) {
+  return EVERAI_MODELS.find((m) => m.id === modelId) || null;
+}
+
+/** Cheap/default voices are not tied to everai-v1.x model_id. */
+export function voiceSupportsModelId(voiceCode: string): boolean {
+  return !/_default$/i.test(voiceCode);
+}
+
+/**
+ * Voices a model can use with `model_id` (EverAI has no public list API;
+ * filtered from the catalog using documented rules).
+ */
+export function listVoicesForModel(modelId: string): EveraiVoice[] {
+  const model = findEveraiModel(modelId);
+  if (!model || !model.supportsStandardVoices) return [];
+  const locales = new Set<string>(model.locales);
+  return EVERAI_VOICES.filter(
+    (v) => voiceSupportsModelId(v.code) && locales.has(v.locale),
+  );
+}
+
+/** Cheap default voices that ignore model_id. */
+export function listDefaultVoices(): EveraiVoice[] {
+  return EVERAI_VOICES.filter((v) => !voiceSupportsModelId(v.code));
 }
 
 export function isTurboModel(modelId?: string | null): boolean {

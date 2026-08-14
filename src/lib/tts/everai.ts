@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { projectAudioDir } from "../storage";
 import { estimateDurationMs } from "./estimate";
+import { voiceSupportsModelId } from "./voices";
 
 const API_BASE =
   process.env.EVERAI_API_BASE?.replace(/\/$/, "") ||
@@ -80,11 +81,6 @@ async function everaiFetch<T>(
     throw new Error(formatEveraiError(payload, res.status));
   }
   return payload.result;
-}
-
-/** Cheap/default voices are not tied to everai-v1.x model_id. */
-function voiceSupportsModelId(voiceCode: string): boolean {
-  return !/_default$/i.test(voiceCode);
 }
 
 export async function createEveraiTts(options: {

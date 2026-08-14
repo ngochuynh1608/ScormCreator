@@ -15,6 +15,7 @@ export type TtsVoiceOption = {
   gender: "male" | "female";
   locale: string;
   region?: string;
+  hasSample?: boolean;
 };
 
 export type TtsModelOption = {
@@ -43,7 +44,6 @@ type Props = {
   onVoiceChange: (code: string) => void;
   onModelChange: (id: string) => void;
   onScriptChange: (script: string) => void;
-  onPreview: (text: string) => void;
   onGenerate: (text: string) => void;
   onGenerateAll: () => void;
   onCancelTts?: () => void;
@@ -81,7 +81,6 @@ export function NarrationPanel({
   onVoiceChange,
   onModelChange,
   onScriptChange,
-  onPreview,
   onGenerate,
   onGenerateAll,
   onCancelTts,
@@ -165,6 +164,33 @@ export function NarrationPanel({
     return [...vi, ...rest];
   }, [voices]);
 
+  const selectedVoice = useMemo(
+    () => voiceOptions.find((v) => v.code === voiceCode) || voiceOptions[0] || null,
+    [voiceOptions, voiceCode],
+  );
+
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      voiceAudioRef.current?.pause();
+      voiceAudioRef.current = null;
+    };
+  }, []);
+
+  function playVoiceSample(code: string) {
+    voiceAudioRef.current?.pause();
+    const audio = new Audio(
+      `/api/tts/samples/${encodeURIComponent(code)}?t=${Date.now()}`,
+    );
+    voiceAudioRef.current = audio;
+    setPlayingVoice(code);
+    audio.onended = () => setPlayingVoice(null);
+    audio.onerror = () => setPlayingVoice(null);
+    void audio.play().catch(() => setPlayingVoice(null));
+  }
+
   function commitScript() {
     if (script !== (slide.narrationScript || "")) {
       onScriptChange(script);
@@ -222,7 +248,7 @@ export function NarrationPanel({
           />
           <button
             type="button"
-            title="Tạo audio EverAI cho toàn bộ slide (ghi đè audio cũ)"
+            title="Tạo audio AI cho toàn bộ slide (ghi đè audio cũ)"
             disabled={ttsBusy || importBusy || !apiConfigured || blockAiGenerate}
             onClick={onGenerateAll}
             className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b7c8d] hover:bg-[#f0f3f6] disabled:opacity-50"
@@ -509,23 +535,52 @@ export function NarrationPanel({
 
       {mode === "ai" ? (
         <>
-          <div className="grid grid-cols-1 gap-2">
-            <label className="rounded-2xl bg-white px-3 py-2 text-[11px] font-semibold text-[#5b6b7c] shadow-sm">
-              Giọng đọc EverAI
-              <select
-                value={voiceCode}
-                onChange={(e) => onVoiceChange(e.target.value)}
-                className="mt-1 w-full rounded-lg border-0 bg-[#f7f9fb] px-2 py-2 text-sm font-medium text-[#1a2330] outline-none"
-              >
-                {voiceOptions.map((v) => (
-                  <option key={v.code} value={v.code}>
-                    {v.name}
-                    {v.region ? ` · ${v.region}` : ""}
-                    {v.gender === "male" ? " (Nam)" : " (Nữ)"}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="rounded-2xl bg-white px-3 py-2.5 shadow-sm">
+            <p className="text-[11px] font-semibold text-[#5b6b7c]">
+              Giọng đọc
+            </p>
+            {voiceOptions.length === 0 ? (
+              <p className="mt-2 text-xs text-[#c45c26]">
+                Admin chưa chọn giọng nào để hiển thị.
+              </p>
+            ) : (
+              <div className="mt-1.5 flex items-center gap-2">
+                <select
+                  value={voiceCode}
+                  onChange={(e) => onVoiceChange(e.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border-0 bg-[#f7f9fb] px-2 py-2 text-sm font-medium text-[#1a2330] outline-none"
+                >
+                  {voiceOptions.map((v) => (
+                    <option key={v.code} value={v.code}>
+                      {v.name}
+                      {v.region ? ` · ${v.region}` : ""}
+                      {v.gender === "male" ? " (Nam)" : " (Nữ)"}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  title={
+                    selectedVoice?.hasSample
+                      ? "Nghe thử giọng"
+                      : "Chưa có mẫu — admin cần tạo trong Giọng đọc AI"
+                  }
+                  disabled={!selectedVoice?.hasSample}
+                  onClick={() => {
+                    if (selectedVoice?.hasSample) playVoiceSample(selectedVoice.code);
+                  }}
+                  className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                    playingVoice === voiceCode
+                      ? "bg-[#2bb673] text-[#083024]"
+                      : selectedVoice?.hasSample
+                        ? "bg-[#f3f5f7] text-[#2a3644] hover:bg-[#e7ebf0]"
+                        : "bg-[#f3f5f7] text-[#b0bac4] opacity-60"
+                  } disabled:cursor-not-allowed`}
+                >
+                  <SpeakerIcon />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col rounded-[22px] bg-white shadow-sm">
@@ -541,35 +596,18 @@ export function NarrationPanel({
               placeholder="Nhập kịch bản lời thoại cho slide này…"
               className="resize-none overflow-y-auto border-0 bg-transparent px-4 pb-2 pt-4 text-[15px] leading-7 text-[#222c38] outline-none placeholder:text-[#9aa7b5]"
             />
-            <div className="flex items-center justify-between gap-3 border-t border-[#eef1f4] px-3 py-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  commitScript();
-                  onPreview(script);
-                }}
-                title="Nghe thử"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f5f7] text-[#2a3644] hover:bg-[#e7ebf0]"
-              >
-                <SpeakerIcon />
-              </button>
-              <div className="flex items-center gap-4 text-sm font-medium text-[#5b6b7c]">
-                <span className="inline-flex items-center gap-1.5">
-                  <ClockIcon />
-                  {formatSeconds(0)}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <HourglassIcon />
-                  {formatSeconds(durationMs)}
-                </span>
-              </div>
+            <div className="flex items-center justify-end gap-3 border-t border-[#eef1f4] px-3 py-2.5">
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5b6b7c]">
+                <HourglassIcon />
+                {formatSeconds(durationMs)}
+              </span>
             </div>
           </div>
 
           {!apiConfigured ? (
             <p className="px-1 text-xs text-[#c45c26]">
-              Hệ thống chưa cấu hình API key EverAI. Liên hệ admin (mục TTS trong
-              trang quản trị).
+              Hệ thống chưa cấu hình giọng đọc AI. Liên hệ admin (mục Giọng đọc AI
+              trong trang quản trị).
             </p>
           ) : creditGuest ? (
             <p className="px-1 text-xs text-[#c45c26]">
@@ -856,20 +894,6 @@ function SpeakerIcon() {
       />
       <path
         d="M15.5 8.5a4.5 4.5 0 0 1 0 7M18 6a8 8 0 0 1 0 12"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M12 7v5l3 2"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"

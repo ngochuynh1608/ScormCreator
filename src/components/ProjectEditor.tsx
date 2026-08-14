@@ -418,8 +418,18 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     setApiKeyPreview(data.apiKeyPreview || "");
     setVoices(data.voices || []);
     setModels(data.models || []);
-    if (data.defaultVoiceCode) setVoiceCode(data.defaultVoiceCode);
     if (data.defaultModelId) setModelId(data.defaultModelId);
+    const list = (data.voices || []) as Array<{ code: string }>;
+    const codes = new Set(list.map((v) => v.code));
+    if (codes.size > 0) {
+      const preferred =
+        data.defaultVoiceCode && codes.has(data.defaultVoiceCode)
+          ? data.defaultVoiceCode
+          : list[0].code;
+      setVoiceCode((cur) => (codes.has(cur) ? cur : preferred));
+    } else if (data.defaultVoiceCode) {
+      setVoiceCode(data.defaultVoiceCode);
+    }
   }, []);
 
   const loadCredits = useCallback(async () => {
@@ -779,7 +789,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     setTtsBusy(true);
     setTtsBulk(false);
     setTtsTargetSlideId(selected.id);
-    setMessage("Đang tạo giọng đọc EverAI…");
+    setMessage("Đang tạo giọng đọc…");
     try {
       const res = await fetch(`/api/projects/${projectId}/tts`, {
         method: "POST",
@@ -834,7 +844,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       }
       await load();
       await loadCredits();
-      setMessage("Đã gắn audio EverAI cho slide hiện tại.");
+      setMessage("Đã gán audio giọng đọc cho trang hiện tại");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "TTS thất bại");
     } finally {
@@ -1135,19 +1145,6 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     } finally {
       setExporting(null);
     }
-  }
-
-  function previewNarration(text?: string) {
-    const script =
-      text ??
-      (selected?.type === "content" ? selected.narrationScript : "");
-    if (!script || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(script);
-    u.lang = "vi-VN";
-    u.rate = rate;
-    u.pitch = pitch;
-    window.speechSynthesis.speak(u);
   }
 
   const deleteTarget = useMemo(
@@ -1535,7 +1532,6 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                   narrationScript: script,
                 }))
               }
-              onPreview={(text) => previewNarration(text)}
               onGenerate={(text) => void generateTts(text)}
               onGenerateAll={() => requestGenerateAllTts()}
               onCancelTts={() => void cancelBackgroundTts()}

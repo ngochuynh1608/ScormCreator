@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { SessionPayload } from "./types";
+import { cookieSecureFlag } from "./cookies";
 
 export const SESSION_COOKIE = "scorm_session";
 const WEEK_SECONDS = 60 * 60 * 24 * 7;
@@ -49,7 +50,7 @@ export async function verifySessionToken(
 export function sessionCookieOptions(maxAge = WEEK_SECONDS) {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecureFlag(),
     sameSite: "lax" as const,
     path: "/",
     maxAge,

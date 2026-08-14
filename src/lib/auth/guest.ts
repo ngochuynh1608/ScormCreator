@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "./session";
+import { cookieSecureFlag } from "./cookies";
 import type { SessionPayload } from "./types";
 import { getProject, saveProject } from "../db";
 import type { Project } from "../types";
@@ -23,7 +24,7 @@ export function attachGuestClaimCookie(
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecureFlag(),
   });
   return res;
 }

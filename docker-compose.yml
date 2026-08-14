@@ -2,17 +2,27 @@ services:
   nginx:
     image: nginx:1.27-alpine
     ports:
-      - "80:80"
+      # Bind explicitly so host:80 is published (required for domain access).
+      - "0.0.0.0:80:80"
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - web
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   web:
     build:
       context: .
       dockerfile: Dockerfile.web
+    # Optional host access for debugging when nginx ports fail.
+    ports:
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env
     environment:

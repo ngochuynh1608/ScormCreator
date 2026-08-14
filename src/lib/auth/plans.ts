@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { COLLECTIONS, getDocumentStore } from "../store";
 import type { SubscriptionPlan } from "./types";
-import { isPlanExpired } from "./plan-expiry";
+import { isPlanExpired, isLowerPlan } from "./plan-expiry";
 
 const DEFAULT_FREE: Omit<SubscriptionPlan, "id" | "createdAt" | "updatedAt"> = {
   name: "Miễn phí",
@@ -105,6 +105,23 @@ export async function resolvePlanForUser(
     }).catch(() => undefined);
   }
   return free;
+}
+
+/**
+ * Cannot replace a paid plan with a cheaper one while still assigned that plan.
+ * After expiry, resolvePlanForUser already moves the user to the free plan.
+ */
+export function assertCanSelectPlan(options: {
+  current: SubscriptionPlan;
+  target: SubscriptionPlan;
+  expiresAt?: string | null;
+}): void {
+  if (options.target.id === options.current.id) return;
+  if (isLowerPlan(options.current, options.target)) {
+    throw new Error(
+      "Gói hiện tại còn hạn sử dụng. Bạn chỉ có thể gia hạn hoặc nâng cấp lên gói cao hơn. Gói thấp hơn sẽ áp dụng khi gói này hết hạn.",
+    );
+  }
 }
 
 export async function createPlan(input: {

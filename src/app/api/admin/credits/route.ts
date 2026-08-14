@@ -14,23 +14,29 @@ import {
   updateCreditPack,
 } from "@/lib/credits";
 import { listPlanOrders, reviewPlanOrder } from "@/lib/subscription/orders";
+import {
+  savePayosSettings,
+  toPayosPublicConfig,
+} from "@/lib/payos/settings";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   const auth = await requireAdmin();
   if (auth.error) return auth.error;
-  const [packs, bank, orders, planOrders, users] = await Promise.all([
+  const [packs, bank, orders, planOrders, users, payos] = await Promise.all([
     listCreditPacks(),
     getCreditBankSettings(),
     listCreditOrders(),
     listPlanOrders(),
     listUsers(),
+    toPayosPublicConfig(),
   ]);
   const byId = Object.fromEntries(users.map((u) => [u.id, u]));
   return NextResponse.json({
     packs,
     bank,
+    payos,
     orders: orders.map((o) => ({
       ...o,
       userEmail: byId[o.userId]?.email || o.userId,
@@ -59,9 +65,18 @@ const bankSchema = z.object({
   transferNoteTemplate: z.string().trim().max(80).optional(),
 });
 
+const payosSchema = z.object({
+  clientId: z.string().max(200).optional(),
+  apiKey: z.string().max(200).optional(),
+  checksumKey: z.string().max(200).optional(),
+  returnBaseUrl: z.string().trim().max(300).optional(),
+  clearKeys: z.boolean().optional(),
+});
+
 const bodySchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("pack"), ...packSchema.shape }),
   z.object({ kind: z.literal("bank"), ...bankSchema.shape }),
+  z.object({ kind: z.literal("payos"), ...payosSchema.shape }),
   z.object({
     kind: z.literal("grant"),
     userId: z.string().min(1),
@@ -82,6 +97,16 @@ export async function POST(req: NextRequest) {
     if (body.kind === "bank") {
       const bank = await saveCreditBankSettings(body);
       return NextResponse.json({ bank });
+    }
+    if (body.kind === "payos") {
+      await savePayosSettings({
+        clientId: body.clientId,
+        apiKey: body.apiKey,
+        checksumKey: body.checksumKey,
+        returnBaseUrl: body.returnBaseUrl,
+        clearKeys: body.clearKeys,
+      });
+      return NextResponse.json({ payos: await toPayosPublicConfig() });
     }
     const wallet = await grantCredits({
       userId: body.userId,

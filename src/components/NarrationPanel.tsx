@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ContentSlide, ScormPlayerSettings } from "@/lib/types";
 import { estimateDurationMs, formatSeconds } from "@/lib/tts/estimate";
-import { estimateCredits } from "@/lib/tts/voices";
+import { estimateCreditsForText, isTurboModel } from "@/lib/tts/voices";
 import { DEFAULT_SCORM_SETTINGS } from "@/lib/scorm/settings";
 import { SlideDesignPanel } from "@/components/SlideDesignPanel";
 
@@ -147,8 +147,8 @@ export function NarrationPanel({
   );
   const durationMs = slide.audioDurationMs ?? estimatedMs;
   const creditEstimate = useMemo(
-    () => estimateCredits(script.trim().length, voiceCode),
-    [script, voiceCode],
+    () => estimateCreditsForText(script, modelId, rate),
+    [script, modelId, rate],
   );
   const outOfCredits =
     !creditGuest &&
@@ -583,7 +583,7 @@ export function NarrationPanel({
               </span>{" "}
               credit
               {script.trim()
-                ? ` · ước lượng ${creditEstimate.toLocaleString("vi-VN")} credit cho slide này`
+                ? ` · ước lượng ${creditEstimate.toLocaleString("vi-VN")} credit cho slide này (${isTurboModel(modelId) ? "Turbo" : "Tiêu chuẩn"})`
                 : ""}
               {outOfCredits ? (
                 <>

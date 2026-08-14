@@ -11,6 +11,8 @@ import {
   listCreditOrders,
   listCreditTransactions,
 } from "@/lib/credits";
+import { isPayosConfigured } from "@/lib/payos/client";
+import { syncOwnedOrder } from "@/lib/payos/fulfill";
 
 export const runtime = "nodejs";
 
@@ -23,7 +25,7 @@ export async function GET() {
     listActiveCreditPacks(),
     getCreditBankSettings(),
     listCreditOrders({ userId }),
-    listCreditTransactions({ userId, limit: 50 }),
+    listCreditTransactions({ userId }),
   ]);
   return NextResponse.json({
     wallet,
@@ -36,6 +38,7 @@ export async function GET() {
     },
     orders,
     transactions,
+    payosConfigured: await isPayosConfigured(),
   });
 }
 
@@ -74,7 +77,7 @@ export async function POST(req: NextRequest) {
 
 const patchSchema = z.object({
   orderId: z.string().min(1),
-  action: z.enum(["cancel", "confirm-transfer"]),
+  action: z.enum(["cancel", "confirm-transfer", "sync"]),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -85,7 +88,13 @@ export async function PATCH(req: NextRequest) {
     const order =
       body.action === "confirm-transfer"
         ? await confirmCreditTransfer(body.orderId, auth.session.userId)
-        : await cancelCreditOrder(body.orderId, auth.session.userId);
+        : body.action === "sync"
+          ? await syncOwnedOrder({
+              kind: "credit",
+              orderId: body.orderId,
+              userId: auth.session.userId,
+            })
+          : await cancelCreditOrder(body.orderId, auth.session.userId);
     return NextResponse.json({ order });
   } catch (err) {
     if (err instanceof z.ZodError) {

@@ -35,6 +35,16 @@ export type CreditOrder = {
   reviewedBy?: string;
   /** User tapped “Đã chuyển khoản” while still waiting for admin. */
   transferConfirmedAt?: string;
+  payosOrderCode?: number;
+  paymentLinkId?: string;
+  checkoutUrl?: string;
+  qrCode?: string;
+  payosBin?: string;
+  payosAccountNumber?: string;
+  payosAccountName?: string;
+  payosDescription?: string;
+  /** Bank transaction reference from PayOS webhook (`reference`). */
+  payosReference?: string;
 };
 
 export type CreditTransactionType = "purchase" | "admin_grant" | "tts_debit";

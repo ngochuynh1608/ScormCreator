@@ -1,17 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { CreditBankSettings, CreditOrder, CreditPack } from "@/lib/credits/types";
-import type { PlanOrder } from "@/lib/subscription/types";
-
-type AdminOrder = CreditOrder & { userEmail?: string; userName?: string };
-type AdminPlanOrder = PlanOrder & { userEmail?: string; userName?: string };
+import type { CreditBankSettings, CreditPack } from "@/lib/credits/types";
 
 type PackDraft = {
   name: string;
   credits: string;
   priceVnd: string;
   active: boolean;
+};
+
+type PayosPublic = {
+  configured: boolean;
+  source: "admin" | "env" | "none";
+  clientIdPreview: string;
+  apiKeyPreview: string;
+  checksumKeyPreview: string;
+  returnBaseUrl: string;
+  webhookUrl: string;
 };
 
 const emptyPack = (): PackDraft => ({
@@ -25,22 +31,20 @@ function formatVnd(n: number) {
   return `${n.toLocaleString("vi-VN")}đ`;
 }
 
-function statusLabel(s: CreditOrder["status"]) {
-  if (s === "pending") return "Chờ xác nhận";
-  if (s === "paid") return "Đã cộng";
-  if (s === "rejected") return "Từ chối";
-  return "Đã hủy";
-}
-
 export default function AdminCreditsPage() {
   const [packs, setPacks] = useState<CreditPack[]>([]);
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
-  const [planOrders, setPlanOrders] = useState<AdminPlanOrder[]>([]);
   const [bank, setBank] = useState<CreditBankSettings>({
     bankName: "",
     accountNumber: "",
     accountName: "",
     transferNoteTemplate: "NAP {orderCode}",
+  });
+  const [payos, setPayos] = useState<PayosPublic | null>(null);
+  const [payosDraft, setPayosDraft] = useState({
+    clientId: "",
+    apiKey: "",
+    checksumKey: "",
+    returnBaseUrl: "",
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,9 +62,16 @@ export default function AdminCreditsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Không tải được credit");
       setPacks(data.packs || []);
-      setOrders(data.orders || []);
-      setPlanOrders(data.planOrders || []);
       if (data.bank) setBank(data.bank);
+      if (data.payos) {
+        setPayos(data.payos as PayosPublic);
+        setPayosDraft({
+          clientId: "",
+          apiKey: "",
+          checksumKey: "",
+          returnBaseUrl: data.payos.returnBaseUrl || "",
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lỗi tải dữ liệu");
     } finally {
@@ -71,6 +82,70 @@ export default function AdminCreditsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function savePayos() {
+    setBusyId("payos");
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "payos",
+          clientId: payosDraft.clientId.trim() || undefined,
+          apiKey: payosDraft.apiKey.trim() || undefined,
+          checksumKey: payosDraft.checksumKey.trim() || undefined,
+          returnBaseUrl: payosDraft.returnBaseUrl.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Lưu PayOS thất bại");
+      setPayos(data.payos);
+      setPayosDraft({
+        clientId: "",
+        apiKey: "",
+        checksumKey: "",
+        returnBaseUrl: data.payos.returnBaseUrl || "",
+      });
+      setMessage("Đã lưu cấu hình PayOS.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Lưu PayOS thất bại");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function clearPayosKeys() {
+    setBusyId("payos");
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "payos",
+          clearKeys: true,
+          returnBaseUrl: payosDraft.returnBaseUrl.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Xóa key PayOS thất bại");
+      setPayos(data.payos);
+      setPayosDraft({
+        clientId: "",
+        apiKey: "",
+        checksumKey: "",
+        returnBaseUrl: data.payos.returnBaseUrl || "",
+      });
+      setMessage("Đã xóa key PayOS đã lưu. Hệ thống dùng biến môi trường nếu có.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xóa key PayOS thất bại");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function saveBank() {
     setBusyId("bank");
@@ -147,85 +222,14 @@ export default function AdminCreditsPage() {
     }
   }
 
-  async function review(order: AdminOrder, action: "confirm" | "reject") {
-    const verb = action === "confirm" ? "xác nhận cộng credit" : "từ chối";
-    if (!window.confirm(`${verb} đơn ${order.orderCode}?`)) return;
-    setBusyId(order.id);
-    setError(null);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/admin/credits", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "order", id: order.id, action }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Cập nhật đơn thất bại");
-      setMessage(
-        action === "confirm"
-          ? `Đã cộng ${order.credits.toLocaleString("vi-VN")} credit.`
-          : "Đã từ chối đơn.",
-      );
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Cập nhật đơn thất bại");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function reviewPlan(order: AdminPlanOrder, action: "confirm" | "reject") {
-    const verb = action === "confirm" ? "kích hoạt gói" : "từ chối";
-    if (!window.confirm(`${verb} đơn ${order.orderCode}?`)) return;
-    setBusyId(order.id);
-    setError(null);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/admin/credits", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "plan-order", id: order.id, action }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Cập nhật đơn thất bại");
-      setMessage(
-        action === "confirm"
-          ? `Đã kích hoạt ${order.planName} (${order.months} tháng).`
-          : "Đã từ chối đơn nâng cấp.",
-      );
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Cập nhật đơn thất bại");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  const pending = orders
-    .filter((o) => o.status === "pending")
-    .sort((a, b) => {
-      const ac = a.transferConfirmedAt ? 1 : 0;
-      const bc = b.transferConfirmedAt ? 1 : 0;
-      if (ac !== bc) return bc - ac;
-      return a.createdAt < b.createdAt ? 1 : -1;
-    });
-  const pendingPlan = planOrders
-    .filter((o) => o.status === "pending")
-    .sort((a, b) => {
-      const ac = a.transferConfirmedAt ? 1 : 0;
-      const bc = b.transferConfirmedAt ? 1 : 0;
-      if (ac !== bc) return bc - ac;
-      return a.createdAt < b.createdAt ? 1 : -1;
-    });
-  const others = orders.filter((o) => o.status !== "pending");
-
   return (
     <section className="admin-panel">
       <div className="admin-panel-head">
         <div>
           <h1 className="brand-font admin-title">Credit TTS</h1>
           <p className="admin-desc">
-            Gói nạp, tài khoản ngân hàng và xác nhận chuyển khoản.
+            Cấu hình PayOS, gói nạp credit, và STK dự phòng. Đơn giao dịch xem
+            tại Lịch sử giao dịch.
           </p>
         </div>
         <button
@@ -245,6 +249,81 @@ export default function AdminCreditsPage() {
       {error ? <p className="admin-alert-error">{error}</p> : null}
       {message ? <p className="admin-alert-ok">{message}</p> : null}
 
+      <h2 className="brand-font admin-title mt-2">PayOS</h2>
+      <p className="admin-desc">
+        Lấy Client ID, API Key, Checksum Key tại{" "}
+        <a
+          href="https://my.payos.vn"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="admin-link"
+        >
+          my.payos.vn
+        </a>
+        . Ô trống khi lưu sẽ giữ key hiện có. Key không hiện đầy đủ sau khi lưu.
+      </p>
+      <div className="admin-form-grid">
+        <Field
+          label="PAYOS_CLIENT_ID"
+          value={payosDraft.clientId}
+          onChange={(v) => setPayosDraft({ ...payosDraft, clientId: v })}
+          placeholder={payos?.clientIdPreview || "Client ID"}
+          secret
+        />
+        <Field
+          label="PAYOS_API_KEY"
+          value={payosDraft.apiKey}
+          onChange={(v) => setPayosDraft({ ...payosDraft, apiKey: v })}
+          placeholder={payos?.apiKeyPreview || "API Key"}
+          secret
+        />
+        <Field
+          label="PAYOS_CHECKSUM_KEY"
+          value={payosDraft.checksumKey}
+          onChange={(v) => setPayosDraft({ ...payosDraft, checksumKey: v })}
+          placeholder={payos?.checksumKeyPreview || "Checksum Key"}
+          secret
+        />
+        <Field
+          label="PAYOS_RETURN_BASE_URL"
+          value={payosDraft.returnBaseUrl}
+          onChange={(v) => setPayosDraft({ ...payosDraft, returnBaseUrl: v })}
+          placeholder="http://localhost:3000"
+        />
+        <p className="admin-muted" style={{ gridColumn: "1 / -1" }}>
+          Trạng thái:{" "}
+          {payos?.configured
+            ? payos.source === "admin"
+              ? "Đã cấu hình (admin)"
+              : "Đã cấu hình (file .env)"
+            : "Chưa cấu hình"}
+          {payos?.webhookUrl ? (
+            <>
+              {" · "}Webhook: <code>{payos.webhookUrl}</code>
+            </>
+          ) : null}
+        </p>
+        <div className="admin-form-actions">
+          <button
+            type="button"
+            disabled={busyId === "payos"}
+            onClick={() => void savePayos()}
+            className="admin-btn-dark"
+          >
+            {busyId === "payos" ? "Đang lưu…" : "Lưu PayOS"}
+          </button>
+          <button
+            type="button"
+            disabled={busyId === "payos"}
+            onClick={() => void clearPayosKeys()}
+            className="admin-btn-muted"
+          >
+            Xóa key đã lưu
+          </button>
+        </div>
+      </div>
+
+      <h2 className="brand-font admin-title mt-8">Tài khoản ngân hàng (dự phòng)</h2>
       <div className="admin-form-grid">
         <Field
           label="Ngân hàng"
@@ -389,178 +468,6 @@ export default function AdminCreditsPage() {
           </tbody>
         </table>
       </div>
-
-      <h2 className="brand-font admin-title mt-8">Đơn nâng cấp gói</h2>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Mã</th>
-              <th>Người dùng</th>
-              <th>Gói</th>
-              <th>Tháng</th>
-              <th>Số tiền</th>
-              <th>Nội dung CK</th>
-              <th>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pendingPlan.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="admin-cell-muted">
-                  Không có đơn nâng cấp chờ.
-                </td>
-              </tr>
-            ) : (
-              pendingPlan.map((o) => (
-                <tr key={o.id}>
-                  <td className="admin-cell-strong">{o.orderCode}</td>
-                  <td className="admin-cell-muted">
-                    {o.userEmail || o.userId}
-                  </td>
-                  <td className="admin-cell-muted">{o.planName}</td>
-                  <td className="admin-cell-muted">{o.months}</td>
-                  <td className="admin-cell-muted">{formatVnd(o.priceVnd)}</td>
-                  <td className="admin-cell-muted">{o.transferContent}</td>
-                  <td>
-                    <div className="admin-row-actions">
-                      {o.transferConfirmedAt ? (
-                        <span className="admin-badge admin-badge-ok">
-                          Đã CK
-                        </span>
-                      ) : (
-                        <span className="admin-badge admin-badge-neutral">
-                          Chưa CK
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        disabled={busyId === o.id}
-                        onClick={() => void reviewPlan(o, "confirm")}
-                        className="admin-link"
-                      >
-                        Xác nhận
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busyId === o.id}
-                        onClick={() => void reviewPlan(o, "reject")}
-                        className="admin-link admin-link-danger"
-                      >
-                        Từ chối
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <h2 className="brand-font admin-title mt-8">Đơn nạp chờ xác nhận</h2>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Mã</th>
-              <th>Người dùng</th>
-              <th>Gói</th>
-              <th>Credit</th>
-              <th>Số tiền</th>
-              <th>Nội dung CK</th>
-              <th>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pending.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="admin-cell-muted">
-                  Không có đơn chờ.
-                </td>
-              </tr>
-            ) : (
-              pending.map((o) => (
-                <tr key={o.id}>
-                  <td className="admin-cell-strong">{o.orderCode}</td>
-                  <td className="admin-cell-muted">
-                    {o.userEmail || o.userId}
-                  </td>
-                  <td className="admin-cell-muted">{o.packName}</td>
-                  <td className="admin-cell-muted">
-                    {o.credits.toLocaleString("vi-VN")}
-                  </td>
-                  <td className="admin-cell-muted">{formatVnd(o.priceVnd)}</td>
-                  <td className="admin-cell-muted">{o.transferContent}</td>
-                  <td>
-                    <div className="admin-row-actions">
-                      {o.transferConfirmedAt ? (
-                        <span className="admin-badge admin-badge-ok">
-                          Đã CK
-                        </span>
-                      ) : (
-                        <span className="admin-badge admin-badge-neutral">
-                          Chưa CK
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        disabled={busyId === o.id}
-                        onClick={() => void review(o, "confirm")}
-                        className="admin-link"
-                      >
-                        Xác nhận
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busyId === o.id}
-                        onClick={() => void review(o, "reject")}
-                        className="admin-link admin-link-danger"
-                      >
-                        Từ chối
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {others.length > 0 ? (
-        <>
-          <h2 className="brand-font admin-title mt-8">Đơn đã xử lý</h2>
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Mã</th>
-                  <th>Gói</th>
-                  <th>Credit</th>
-                  <th>Trạng thái</th>
-                  <th>Thời gian</th>
-                </tr>
-              </thead>
-              <tbody>
-                {others.slice(0, 30).map((o) => (
-                  <tr key={o.id}>
-                    <td className="admin-cell-strong">{o.orderCode}</td>
-                    <td className="admin-cell-muted">{o.packName}</td>
-                    <td className="admin-cell-muted">
-                      {o.credits.toLocaleString("vi-VN")}
-                    </td>
-                    <td className="admin-cell-muted">{statusLabel(o.status)}</td>
-                    <td className="admin-cell-muted">
-                      {new Date(o.updatedAt).toLocaleString("vi-VN")}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      ) : null}
     </section>
   );
 }
@@ -569,17 +476,23 @@ function Field({
   label,
   value,
   onChange,
+  placeholder,
+  secret,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  placeholder?: string;
+  secret?: boolean;
 }) {
   return (
     <label className="admin-label">
       {label}
       <input
-        type="text"
+        type={secret ? "password" : "text"}
+        autoComplete="off"
         value={value}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className="admin-input"
       />

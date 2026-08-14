@@ -1,3 +1,5 @@
+import { estimateDurationMs } from "./estimate";
+
 export type EveraiVoice = {
   code: string;
   name: string;
@@ -132,23 +134,53 @@ export const EVERAI_VOICES: EveraiVoice[] = [
 ];
 
 export const EVERAI_MODELS = [
-  { id: "everai-v1.6", label: "everai-v1.6 (khuyến nghị)" },
-  { id: "everai-v1.5", label: "everai-v1.5" },
-  { id: "everai-v1.5-turbo", label: "everai-v1.5-turbo (nhanh, rẻ hơn)" },
-  { id: "everai-v1", label: "everai-v1" },
+  { id: "everai-v1.6", label: "everai-v1.6 · Tiêu chuẩn (~833 credit/phút)" },
+  { id: "everai-v1.5", label: "everai-v1.5 · Tiêu chuẩn (~833 credit/phút)" },
+  {
+    id: "everai-v1.5-turbo",
+    label: "everai-v1.5-turbo · Turbo (~416 credit/phút)",
+  },
+  { id: "everai-v1", label: "everai-v1 · Tiêu chuẩn (~833 credit/phút)" },
 ] as const;
 
 export const DEFAULT_VOICE = "vi_female_kieunhi_mn";
 export const DEFAULT_MODEL = "everai-v1.6";
 
+/** EverAI: 10.000 credits ≈ 0.4 giờ (Turbo) → 25.000 / giờ. */
+export const TURBO_CREDITS_PER_HOUR = 25_000;
+/** EverAI: 10.000 credits ≈ 0.2 giờ (Tiêu chuẩn) → 50.000 / giờ. */
+export const STANDARD_CREDITS_PER_HOUR = 50_000;
+
 export function findEveraiVoice(code: string): EveraiVoice | undefined {
   return EVERAI_VOICES.find((v) => v.code === code);
 }
 
-/** Estimate EverAI credits from billed character count + voice rate. */
-export function estimateCredits(characters: number, voiceCode: string): number {
-  const voice = findEveraiVoice(voiceCode);
-  const per1k = voice?.creditsPer1k ?? 1000;
-  const chars = Math.max(0, Math.ceil(characters));
-  return Math.max(1, Math.ceil((chars * per1k) / 1000));
+export function isTurboModel(modelId?: string | null): boolean {
+  return /turbo/i.test(String(modelId || ""));
+}
+
+/**
+ * EverAI bills by audio duration, not characters.
+ * Turbo ≈ 416 credit/phút; Standard ≈ 833 credit/phút.
+ */
+export function estimateCredits(
+  durationMs: number,
+  modelId?: string | null,
+): number {
+  const ms = Math.max(0, durationMs);
+  if (ms <= 0) return 0;
+  const perHour = isTurboModel(modelId)
+    ? TURBO_CREDITS_PER_HOUR
+    : STANDARD_CREDITS_PER_HOUR;
+  return Math.max(1, Math.ceil((ms / 3_600_000) * perHour));
+}
+
+export function estimateCreditsForText(
+  text: string,
+  modelId?: string | null,
+  rate = 1,
+): number {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  return estimateCredits(estimateDurationMs(trimmed, rate), modelId);
 }

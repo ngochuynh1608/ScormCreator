@@ -1,11 +1,16 @@
 import { randomBytes } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { COLLECTIONS, getDocumentStore } from "../store";
-import { getPlan } from "../auth/plans";
+import { getPlan, resolvePlanForUser, assertCanSelectPlan } from "../auth/plans";
 import { findUserById, updateUser } from "../auth/users";
-import { getCreditBankSettings } from "../credits/settings";
 import { withCreditLock } from "../credits/wallet";
 import { isPlanExpired, planExpiryFromMonths } from "../auth/plan-expiry";
+import {
+  cancelPaymentLink,
+  createPaymentLink,
+  getPaymentLink,
+  isPayosConfigured,
+} from "../payos/client";
 import type { PlanOrder, PlanOrderStatus } from "./types";
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -39,6 +44,13 @@ export async function getPlanOrder(id: string): Promise<PlanOrder | null> {
   return store.get<PlanOrder>(COLLECTIONS.planOrders, id);
 }
 
+export async function getPlanOrderByPayosCode(
+  code: number,
+): Promise<PlanOrder | null> {
+  const rows = await listAll();
+  return rows.find((o) => o.payosOrderCode === code) || null;
+}
+
 async function uniqueOrderCode(): Promise<string> {
   const existing = new Set((await listAll()).map((o) => o.orderCode));
   for (let i = 0; i < 12; i++) {
@@ -62,30 +74,60 @@ export async function createPlanOrder(input: {
   if (plan.monthlyPrice <= 0) {
     throw new Error("Gói miễn phí không cần thanh toán.");
   }
-  const bank = await getCreditBankSettings();
-  if (!bank.accountNumber || !bank.accountName) {
+  const user = await findUserById(input.userId);
+  if (!user) throw new Error("Không tìm thấy tài khoản.");
+  const current = await resolvePlanForUser(user.planId, {
+    expiresAt: user.planExpiresAt,
+    userId: user.id,
+  });
+  const fresh = await findUserById(input.userId);
+  assertCanSelectPlan({
+    current,
+    target: plan,
+    expiresAt: fresh?.planExpiresAt ?? user.planExpiresAt,
+  });
+  if (!(await isPayosConfigured())) {
     throw new Error(
-      "Admin chưa cấu hình tài khoản ngân hàng. Liên hệ quản trị để nâng cấp gói.",
+      "Thanh toán PayOS chưa được cấu hình. Liên hệ quản trị để nâng cấp gói.",
     );
   }
   const orderCode = await uniqueOrderCode();
   const now = new Date().toISOString();
+  const orderId = uuidv4();
+  const priceVnd = plan.monthlyPrice * months;
+  const payos = await createPaymentLink({
+    kind: "plan",
+    orderId,
+    orderCode,
+    amount: priceVnd,
+    itemName: `${plan.name} ${months} tháng`,
+  });
   const order: PlanOrder = {
-    id: uuidv4(),
+    id: orderId,
     orderCode,
     userId: input.userId,
     planId: plan.id,
     planName: plan.name,
     months,
     monthlyPrice: plan.monthlyPrice,
-    priceVnd: plan.monthlyPrice * months,
+    priceVnd,
     status: "pending",
     transferContent: `GOI ${orderCode}`,
     createdAt: now,
     updatedAt: now,
+    ...payos,
   };
   const store = await getDocumentStore();
-  await store.put(COLLECTIONS.planOrders, order);
+  try {
+    await store.put(COLLECTIONS.planOrders, order);
+  } catch (err) {
+    try {
+      await cancelPaymentLink(payos.payosOrderCode);
+    } catch {
+      // ignore
+    }
+    throw err;
+  }
   return order;
 }
 
@@ -122,6 +164,54 @@ export async function cancelPlanOrder(
   if (order.status !== "pending") {
     throw new Error("Chỉ hủy được đơn đang chờ xác nhận.");
   }
+  if (order.payosOrderCode && (await isPayosConfigured())) {
+    try {
+      const info = await getPaymentLink(order.payosOrderCode);
+      if (info.status === "PAID") {
+        try {
+          return await reviewPlanOrder({
+            orderId: order.id,
+            action: "confirm",
+            adminUserId: "payos",
+            payosReference: info.transactions?.[0]?.reference,
+          });
+        } catch (err) {
+          const fresh = await getPlanOrder(order.id);
+          if (fresh?.status === "paid") return fresh;
+          throw err;
+        }
+      }
+      if (
+        info.status === "PENDING" ||
+        info.status === "PROCESSING" ||
+        info.status === "UNDERPAID"
+      ) {
+        try {
+          await cancelPaymentLink(order.payosOrderCode);
+        } catch {
+          // already cancelled on PayOS
+        }
+      }
+    } catch {
+      try {
+        await cancelPaymentLink(order.payosOrderCode);
+      } catch {
+        // ignore PayOS cancel errors and still close locally
+      }
+    }
+  }
+  return markPlanOrderCancelled(order.id);
+}
+
+export async function markPlanOrderCancelled(
+  orderId: string,
+): Promise<PlanOrder> {
+  const order = await getPlanOrder(orderId);
+  if (!order) throw new Error("Không tìm thấy đơn nâng cấp.");
+  if (order.status === "cancelled") return order;
+  if (order.status !== "pending") {
+    throw new Error("Chỉ hủy được đơn đang chờ xác nhận.");
+  }
   const next: PlanOrder = {
     ...order,
     status: "cancelled",
@@ -137,6 +227,7 @@ export async function reviewPlanOrder(input: {
   action: "confirm" | "reject";
   adminUserId: string;
   note?: string;
+  payosReference?: string;
 }): Promise<PlanOrder> {
   return withCreditLock(async () => {
     const order = await getPlanOrder(input.orderId);
@@ -145,6 +236,7 @@ export async function reviewPlanOrder(input: {
       throw new Error("Đơn này đã được xử lý.");
     }
     const now = new Date().toISOString();
+    const payosReference = input.payosReference || order.payosReference;
     if (input.action === "reject") {
       const next: PlanOrder = {
         ...order,
@@ -152,6 +244,7 @@ export async function reviewPlanOrder(input: {
         note: input.note?.trim() || order.note,
         reviewedAt: now,
         reviewedBy: input.adminUserId,
+        payosReference,
         updatedAt: now,
       };
       const store = await getDocumentStore();
@@ -160,11 +253,25 @@ export async function reviewPlanOrder(input: {
     }
 
     const user = await findUserById(order.userId);
+    if (!user) throw new Error("Không tìm thấy tài khoản.");
+    const target = await getPlan(order.planId);
+    if (!target) throw new Error("Không tìm thấy gói.");
+    const current = await resolvePlanForUser(user.planId, {
+      expiresAt: user.planExpiresAt,
+      userId: user.id,
+    });
+    const fresh = await findUserById(order.userId);
+    assertCanSelectPlan({
+      current,
+      target,
+      expiresAt: fresh?.planExpiresAt ?? user.planExpiresAt,
+    });
+    const existingExpiry = (fresh || user).planExpiresAt;
     const base =
-      user?.planId === order.planId &&
-      user.planExpiresAt &&
-      !isPlanExpired(user.planExpiresAt)
-        ? user.planExpiresAt
+      (fresh || user).planId === order.planId &&
+      existingExpiry &&
+      !isPlanExpired(existingExpiry)
+        ? existingExpiry
         : now;
     const expiresAt = planExpiryFromMonths(base, order.months);
     await updateUser(order.userId, {
@@ -178,6 +285,7 @@ export async function reviewPlanOrder(input: {
       note: input.note?.trim() || order.note,
       reviewedAt: now,
       reviewedBy: input.adminUserId,
+      payosReference,
       updatedAt: now,
     };
     const store = await getDocumentStore();

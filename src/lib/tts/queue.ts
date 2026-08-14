@@ -231,7 +231,10 @@ async function processJob(jobId: string) {
 
     const billedOwner = job.ownerId || project.ownerId;
     if (billedOwner) {
-      const credits = estimateCredits(result.characters, job.voice);
+      const credits =
+        estimateCredits(result.durationMs, job.modelId) ||
+        job.estimatedCredits ||
+        0;
       await settleTtsDebit({
         userId: billedOwner,
         amount: credits,

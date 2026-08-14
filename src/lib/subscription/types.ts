@@ -18,4 +18,13 @@ export type PlanOrder = {
   reviewedBy?: string;
   transferConfirmedAt?: string;
   expiresAt?: string;
+  payosOrderCode?: number;
+  paymentLinkId?: string;
+  checkoutUrl?: string;
+  qrCode?: string;
+  payosBin?: string;
+  payosAccountNumber?: string;
+  payosAccountName?: string;
+  payosDescription?: string;
+  payosReference?: string;
 };

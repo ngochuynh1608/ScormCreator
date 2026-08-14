@@ -7,7 +7,8 @@ const ITEMS = [
   { href: "/admin/users", label: "Người dùng", hint: "Học viên & gói" },
   { href: "/admin/accounts", label: "Tài khoản", hint: "Quản trị hệ thống" },
   { href: "/admin/plans", label: "Gói đăng ký", hint: "Hạn mức & giá" },
-  { href: "/admin/credits", label: "Credit", hint: "Gói nạp & đơn" },
+  { href: "/admin/credits", label: "Credit", hint: "Gói nạp & PayOS" },
+  { href: "/admin/transactions", label: "Lịch sử giao dịch", hint: "Đơn nạp & nâng cấp" },
   { href: "/admin/faq", label: "FAQ", hint: "Câu hỏi thường gặp" },
   { href: "/admin/tts", label: "Giọng đọc AI", hint: "API & mặc định" },
 ];

@@ -1,3 +1,5 @@
+import type { SubscriptionPlan } from "./types";
+
 export function isPlanExpired(expiresAt?: string | null): boolean {
   if (!expiresAt) return false;
   const ts = Date.parse(expiresAt);
@@ -10,4 +12,12 @@ export function planExpiryFromMonths(fromIso: string, months: number): string {
   const days = Math.max(1, Math.floor(months)) * 30;
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString();
+}
+
+/** True when target costs less per month than the current plan. */
+export function isLowerPlan(
+  current: SubscriptionPlan,
+  target: SubscriptionPlan,
+): boolean {
+  return target.monthlyPrice < current.monthlyPrice;
 }

@@ -30,6 +30,8 @@ function isPublicPath(pathname: string) {
   if (pathname === "/api/settings/tts") return true;
   // Credit balance for the editor (guest gets { guest: true }).
   if (pathname === "/api/credits/wallet") return true;
+  // PayOS payment webhook (HMAC verified in the route).
+  if (pathname.startsWith("/api/payos")) return true;
   // Large PPTX/PDF uploads — skip middleware body buffering (auth optional in route).
   if (pathname === "/api/upload") return true;
   return false;
@@ -117,5 +119,6 @@ export const config = {
     "/api/settings/:path*",
     "/api/admin/:path*",
     "/api/account/:path*",
+    "/api/payos/:path*",
   ],
 };

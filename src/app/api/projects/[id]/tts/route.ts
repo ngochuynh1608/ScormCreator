@@ -8,7 +8,7 @@ import {
   withCreditLock,
 } from "@/lib/credits";
 import { enqueueTtsJob, listActiveTtsJobs } from "@/lib/tts/queue";
-import { DEFAULT_VOICE, estimateCredits } from "@/lib/tts/voices";
+import { DEFAULT_VOICE, estimateCreditsForText } from "@/lib/tts/voices";
 import { getTtsSettings } from "@/lib/tts/settings";
 import type { ContentSlide } from "@/lib/types";
 
@@ -53,13 +53,15 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     | "everai";
   const settings = await getTtsSettings();
   const voice = body.voice || settings.defaultVoiceCode || DEFAULT_VOICE;
+  const modelId = body.modelId || settings.defaultModelId;
+  const rate = body.rate ?? 1;
   const common = {
     projectId: id,
     voice,
     language: body.language,
-    rate: body.rate,
+    rate,
     pitch: body.pitch,
-    modelId: body.modelId,
+    modelId,
     provider,
   };
 
@@ -115,7 +117,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
             .reduce(
               (sum, slide) =>
                 sum +
-                estimateCredits(slide.narrationScript.trim().length, voice),
+                estimateCreditsForText(
+                  slide.narrationScript,
+                  modelId,
+                  rate,
+                ),
               0,
             );
           await assertCreditsAvailable(ownerId, needed);
@@ -129,7 +135,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
               ownerId,
               estimatedCredits:
                 provider === "everai"
-                  ? estimateCredits(slide.narrationScript.trim().length, voice)
+                  ? estimateCreditsForText(
+                      slide.narrationScript,
+                      modelId,
+                      rate,
+                    )
                   : 0,
             }),
           );
@@ -165,7 +175,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   const estimatedCredits =
     provider === "everai"
-      ? estimateCredits(slide.narrationScript.trim().length, voice)
+      ? estimateCreditsForText(slide.narrationScript, modelId, rate)
       : 0;
 
   try {

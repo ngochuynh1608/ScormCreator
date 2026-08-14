@@ -36,7 +36,7 @@ import {
   type TtsModelOption,
   type TtsVoiceOption,
 } from "@/components/NarrationPanel";
-import { estimateCredits } from "@/lib/tts/voices";
+import { estimateCreditsForText } from "@/lib/tts/voices";
 import {
   ConfirmDeleteSlideModal,
   ConfirmGenerateAllAudioModal,
@@ -880,9 +880,10 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     const estimate = targets.reduce(
       (sum, s) =>
         sum +
-        estimateCredits(
-          (s.type === "content" ? s.narrationScript : "").trim().length,
-          voiceCode,
+        estimateCreditsForText(
+          s.type === "content" ? s.narrationScript : "",
+          modelId,
+          rate,
         ),
       0,
     );

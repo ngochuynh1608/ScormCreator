@@ -27,7 +27,9 @@ export {
   confirmCreditTransfer,
   createCreditOrder,
   getCreditOrder,
+  getCreditOrderByPayosCode,
   listCreditOrders,
+  markCreditOrderCancelled,
   reviewCreditOrder,
 } from "./orders";
 export {

@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubscriptionPlan } from "@/lib/auth/types";
 import type { PlanOrder } from "@/lib/subscription/types";
-import { planExpiryFromMonths, isPlanExpired } from "@/lib/auth/plan-expiry";
+import { planExpiryFromMonths, isPlanExpired, isLowerPlan } from "@/lib/auth/plan-expiry";
 import { BankTransferCard } from "@/components/BankTransferCard";
+import { PayosCheckoutCard } from "@/components/PayosCheckoutCard";
+import { RenewIcon, UpgradeIcon } from "@/components/account-icons";
 
 type Usage = {
   presentationsUsed: number;
@@ -32,6 +34,7 @@ type SubResponse = {
   planExpiresAt?: string | null;
   bank?: BankInfo;
   planOrders?: PlanOrder[];
+  payosConfigured?: boolean;
   usage: Usage;
   notice?: string;
   error?: string;
@@ -67,6 +70,7 @@ function orderStatus(o: PlanOrder) {
   if (o.status === "paid") return "Đã kích hoạt";
   if (o.status === "rejected") return "Đã từ chối";
   if (o.status === "cancelled") return "Đã hủy";
+  if (o.checkoutUrl) return "Chờ thanh toán";
   if (o.transferConfirmedAt) return "Đã báo chuyển khoản";
   return "Chờ chuyển khoản";
 }
@@ -88,6 +92,8 @@ export function AccountSubscriptionPanel() {
   const [months, setMonths] = useState(1);
   const [checkoutOrder, setCheckoutOrder] = useState<PlanOrder | null>(null);
   const [renewing, setRenewing] = useState(false);
+  const [payosConfigured, setPayosConfigured] = useState(false);
+  const returnHandled = useRef(false);
 
   const apply = useCallback((data: SubResponse) => {
     setPlan(data.plan);
@@ -96,10 +102,12 @@ export function AccountSubscriptionPanel() {
     setPlanExpiresAt(data.planExpiresAt || null);
     if (data.bank) setBank(data.bank);
     setPlanOrders(data.planOrders || []);
+    if (typeof data.payosConfigured === "boolean") {
+      setPayosConfigured(data.payosConfigured);
+    }
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/account/subscription");
@@ -126,6 +134,82 @@ export function AccountSubscriptionPanel() {
     setRenewing(false);
   }
 
+  async function syncOrder(orderId: string) {
+    const res = await fetch("/api/account/plan-orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, action: "sync" }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Không kiểm tra được thanh toán");
+    const order = json.order as PlanOrder;
+    setCheckoutOrder((cur) => (cur?.id === order.id ? order : cur));
+    setPlanOrders((rows) => rows.map((o) => (o.id === order.id ? order : o)));
+    return order;
+  }
+
+  useEffect(() => {
+    if (loading || returnHandled.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get("orderId");
+    if (!orderId) return;
+    returnHandled.current = true;
+    const order = planOrders.find((o) => o.id === orderId);
+    if (!order) return;
+    const found = plans.find((p) => p.id === order.planId) || null;
+    setSelectedPlan(found);
+    setCheckoutOrder(order);
+    setMonths(order.months);
+    setStep("transfer");
+    setUpgradeOpen(true);
+    if (order.status === "paid") {
+      setMessage("Thanh toán thành công. Gói đã được kích hoạt.");
+      return;
+    }
+    if (order.status !== "pending") return;
+    void (async () => {
+      try {
+        const next = await syncOrder(order.id);
+        await load();
+        if (next.status === "paid") {
+          setMessage("Thanh toán thành công. Gói đã được kích hoạt.");
+          closeUpgrade();
+        } else if (next.status === "cancelled") {
+          setMessage("Đơn thanh toán đã hủy.");
+          closeUpgrade();
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Không kiểm tra được thanh toán");
+      }
+    })();
+  }, [loading, planOrders, plans, load]);
+
+  useEffect(() => {
+    if (!upgradeOpen || !checkoutOrder || checkoutOrder.status !== "pending") {
+      return;
+    }
+    const orderId = checkoutOrder.id;
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const next = await syncOrder(orderId);
+          if (next.status === "paid") {
+            setMessage("Thanh toán thành công. Gói đã được kích hoạt.");
+            closeUpgrade();
+            await load();
+          } else if (next.status === "cancelled") {
+            setMessage("Đơn thanh toán đã hủy.");
+            closeUpgrade();
+            await load();
+          }
+        } catch {
+          // keep polling
+        }
+      })();
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [upgradeOpen, checkoutOrder?.id, checkoutOrder?.status, load]);
+
   function openRenew() {
     if (!plan) return;
     setError(null);
@@ -146,6 +230,13 @@ export function AccountSubscriptionPanel() {
   }
 
   async function selectFreePlan(planId: string) {
+    const target = plans.find((p) => p.id === planId);
+    if (plan && target && isLowerPlan(plan, target)) {
+      setError(
+        "Gói hiện tại còn hạn sử dụng. Bạn chỉ có thể gia hạn hoặc nâng cấp lên gói cao hơn.",
+      );
+      return;
+    }
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -168,6 +259,12 @@ export function AccountSubscriptionPanel() {
   }
 
   function choosePaidPlan(p: SubscriptionPlan) {
+    if (plan && isLowerPlan(plan, p)) {
+      setError(
+        "Gói hiện tại còn hạn sử dụng. Bạn chỉ có thể gia hạn hoặc nâng cấp lên gói cao hơn.",
+      );
+      return;
+    }
     setSelectedPlan(p);
     setMonths(1);
     setCheckoutOrder(null);
@@ -257,6 +354,10 @@ export function AccountSubscriptionPanel() {
     setUpgradeOpen(true);
   }
 
+  const hasLowerPlans = Boolean(
+    plan && plans.some((p) => isLowerPlan(plan, p)),
+  );
+
   const previewExpiry = useMemo(() => {
     const from =
       renewing && planExpiresAt && !isPlanExpired(planExpiresAt)
@@ -320,7 +421,7 @@ export function AccountSubscriptionPanel() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="brand-font text-2xl font-semibold text-[#0f2a36]">
-            Gói đăng ký
+            Gói đăng ký & Credit
           </h1>
           <p className="mt-2 text-sm leading-6 text-[#5b6b7c]">
             Theo dõi mức sử dụng và nâng cấp gói khi cần thêm hạn mức.
@@ -330,8 +431,9 @@ export function AccountSubscriptionPanel() {
           <button
             type="button"
             onClick={openRenew}
-            className="cursor-pointer rounded-full border border-[#c9d8e2] bg-white px-5 py-2.5 text-sm font-bold text-[#0f2a36]"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#c9d8e2] bg-white px-5 py-2.5 text-sm font-bold text-[#0f2a36]"
           >
+            <RenewIcon />
             Gia hạn
           </button>
           <button
@@ -340,8 +442,9 @@ export function AccountSubscriptionPanel() {
               setStep("list");
               setUpgradeOpen(true);
             }}
-            className="cursor-pointer rounded-full bg-[#2bb673] px-5 py-2.5 text-sm font-bold text-[#083024]"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#2bb673] px-5 py-2.5 text-sm font-bold text-[#083024]"
           >
+            <UpgradeIcon />
             Nâng cấp gói
           </button>
         </div>
@@ -443,7 +546,7 @@ export function AccountSubscriptionPanel() {
                             onClick={() => openExistingOrder(o)}
                             className="cursor-pointer text-xs font-semibold text-[#0f2a36]"
                           >
-                            Xem STK
+                            Xem thanh toán
                           </button>
                           <button
                             type="button"
@@ -473,7 +576,7 @@ export function AccountSubscriptionPanel() {
           onClick={() => !busy && closeUpgrade()}
         >
           <div
-            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-[28px] bg-white p-6 shadow-xl"
+            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[28px] bg-white p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             {step === "list" ? (
@@ -487,8 +590,8 @@ export function AccountSubscriptionPanel() {
                       Nâng cấp gói
                     </h2>
                     <p className="mt-1 text-sm text-[#5b6b7c]">
-                      Chọn gói, rồi chuyển khoản. Gói chỉ kích hoạt sau khi
-                      admin xác nhận.
+                      Chọn gói rồi thanh toán qua PayOS. Gói kích hoạt tự động
+                      khi giao dịch thành công.
                     </p>
                   </div>
                   <button
@@ -500,18 +603,27 @@ export function AccountSubscriptionPanel() {
                     Đóng
                   </button>
                 </div>
+                {hasLowerPlans ? (
+                  <p className="mt-4 rounded-2xl border border-[#f0d2c0] bg-[#fff7f1] px-3.5 py-2.5 text-sm font-medium leading-6 text-[#8a3d12]">
+                    Đang dùng {plan.name}. Không thể chuyển sang gói thấp hơn
+                    khi gói này còn hạn — chỉ gia hạn hoặc nâng cấp.
+                  </p>
+                ) : null}
 
                 <div className="mt-5 flex flex-col gap-3">
                   {plans.map((p) => {
                     const current = p.id === plan.id;
                     const paid = p.monthlyPrice > 0;
+                    const blockedDowngrade = !current && isLowerPlan(plan, p);
                     return (
                       <div
                         key={p.id}
                         className={`rounded-2xl border px-4 py-4 ${
                           current
                             ? "border-[#2bb673] bg-[#eefaf4]"
-                            : "border-[#e2e8ef] bg-[#f7f9fb]"
+                            : blockedDowngrade
+                              ? "border-[#e2e8ef] bg-[#f4f6f8] opacity-70"
+                              : "border-[#e2e8ef] bg-[#f7f9fb]"
                         }`}
                       >
                         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -530,18 +642,28 @@ export function AccountSubscriptionPanel() {
                           ) : (
                             <button
                               type="button"
-                              disabled={busy}
-                              onClick={() =>
-                                paid
-                                  ? choosePaidPlan(p)
-                                  : void selectFreePlan(p.id)
+                              disabled={busy || blockedDowngrade}
+                              title={
+                                blockedDowngrade
+                                  ? `Không thể hạ từ ${plan.name} khi gói còn hạn`
+                                  : undefined
                               }
-                              className="cursor-pointer rounded-full bg-[#0f2a36] px-3.5 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                              onClick={() => {
+                                if (blockedDowngrade) return;
+                                if (paid) choosePaidPlan(p);
+                                else void selectFreePlan(p.id);
+                              }}
+                              className="cursor-pointer rounded-full bg-[#0f2a36] px-3.5 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               {current && paid ? "Gia hạn" : "Chọn gói"}
                             </button>
                           )}
                         </div>
+                        {blockedDowngrade ? (
+                          <p className="mt-2 text-xs text-[#8a98a8]">
+                            Không khả dụng — gói thấp hơn gói đang dùng.
+                          </p>
+                        ) : null}
                         <ul className="mt-3 grid gap-1 text-xs text-[#5b6b7c] sm:grid-cols-3">
                           <li>{p.maxPresentations} trình chiếu</li>
                           <li>
@@ -566,8 +688,8 @@ export function AccountSubscriptionPanel() {
                 </h2>
                 <p className="mt-1 text-sm text-[#5b6b7c]">
                   {renewing
-                    ? "Gia hạn gói hiện tại. Chọn số tháng, thanh toán, rồi chờ admin xác nhận."
-                    : "Chọn số tháng cần mua. Hạn dùng tính từ ngày admin kích hoạt, mỗi tháng = 30 ngày."}
+                    ? "Gia hạn gói hiện tại. Chọn số tháng rồi thanh toán qua PayOS."
+                    : "Chọn số tháng cần mua. Hạn dùng tính từ ngày thanh toán thành công, mỗi tháng = 30 ngày."}
                 </p>
                 <div className="mt-5 rounded-2xl border border-[#e2e8ef] bg-[#f7f9fb] px-4 py-4">
                   <p className="font-semibold text-[#0f2a36]">
@@ -628,22 +750,22 @@ export function AccountSubscriptionPanel() {
                   </button>
                   <button
                     type="button"
-                    disabled={busy || !bank?.configured}
+                    disabled={busy || !payosConfigured}
                     onClick={() => void startPayment()}
                     className="cursor-pointer rounded-full bg-[#0f2a36] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
                   >
                     {busy ? "Đang tạo đơn…" : "Thanh toán"}
                   </button>
                 </div>
-                {!bank?.configured ? (
+                {!payosConfigured ? (
                   <p className="mt-3 text-xs text-[#c45c26]">
-                    Admin chưa cấu hình tài khoản nhận tiền.
+                    Thanh toán PayOS chưa được cấu hình.
                   </p>
                 ) : null}
               </>
             ) : null}
 
-            {step === "transfer" && checkoutOrder && bank ? (
+            {step === "transfer" && checkoutOrder ? (
               <>
                 <h2
                   id="upgrade-title"
@@ -655,14 +777,32 @@ export function AccountSubscriptionPanel() {
                   {checkoutOrder.planName} · {checkoutOrder.months} tháng
                 </p>
                 <div className="mt-4">
-                  <BankTransferCard
-                    orderCode={checkoutOrder.orderCode}
-                    bank={bank}
-                    amountVnd={checkoutOrder.priceVnd}
-                    transferContent={checkoutOrder.transferContent}
-                  />
+                  {checkoutOrder.checkoutUrl ? (
+                    <PayosCheckoutCard
+                      orderCode={checkoutOrder.orderCode}
+                      amountVnd={checkoutOrder.priceVnd}
+                      qrCode={checkoutOrder.qrCode}
+                      transferContent={checkoutOrder.transferContent}
+                      payosBin={checkoutOrder.payosBin}
+                      payosAccountNumber={checkoutOrder.payosAccountNumber}
+                      payosAccountName={checkoutOrder.payosAccountName}
+                      payosDescription={checkoutOrder.payosDescription}
+                    />
+                  ) : bank ? (
+                    <BankTransferCard
+                      orderCode={checkoutOrder.orderCode}
+                      bank={bank}
+                      amountVnd={checkoutOrder.priceVnd}
+                      transferContent={checkoutOrder.transferContent}
+                    />
+                  ) : null}
                 </div>
-                {checkoutOrder.transferConfirmedAt ? (
+                {checkoutOrder.checkoutUrl ? (
+                  <p className="mt-4 text-sm text-[#5b6b7c]">
+                    Trang này tự kiểm tra thanh toán. Bạn có thể đóng và quay lại
+                    sau.
+                  </p>
+                ) : checkoutOrder.transferConfirmedAt ? (
                   <p className="mt-4 text-sm font-medium text-[#1f7a4d]">
                     Bạn đã báo đã chuyển khoản. Đợi admin kích hoạt gói.
                   </p>
@@ -680,7 +820,8 @@ export function AccountSubscriptionPanel() {
                   >
                     Đóng
                   </button>
-                  {!checkoutOrder.transferConfirmedAt ? (
+                  {!checkoutOrder.checkoutUrl &&
+                  !checkoutOrder.transferConfirmedAt ? (
                     <button
                       type="button"
                       disabled={busy}

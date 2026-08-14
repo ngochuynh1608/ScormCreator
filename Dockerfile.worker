@@ -11,13 +11,12 @@ RUN apt-get update \
     ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm config set fetch-retries 5 \
-  && npm config set fetch-retry-maxtimeout 120000 \
-  && npm ci --no-audit --no-fund \
-  || (echo "===== npm ci failed — last log =====" \
-      && ls -lt /root/.npm/_logs/ | head -5 \
-      && tail -n 120 /root/.npm/_logs/*-debug-0.log \
-      && exit 1)
+RUN bash -euo pipefail -c '\
+  npm config set fetch-retries 5; \
+  npm config set fetch-retry-maxtimeout 120000; \
+  npm install --no-audit --no-fund 2>&1 | tee /tmp/npm-install.log; \
+  exit ${PIPESTATUS[0]} \
+'
 
 FROM node:22-bookworm AS runner
 WORKDIR /app

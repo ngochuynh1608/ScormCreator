@@ -26,7 +26,14 @@ function normalizeUser(row: AuthUser): AuthUser {
     planId: row.planId ?? null,
     planExpiresAt: row.planExpiresAt ?? null,
     role: row.role === "admin" ? "admin" : "user",
+    emailVerifiedAt: row.emailVerifiedAt === null ? null : row.emailVerifiedAt,
   };
+}
+
+/** New signups set `emailVerifiedAt: null`. Legacy rows omit the field. */
+export function isEmailVerified(user: AuthUser): boolean {
+  if (user.emailVerifiedAt === null) return false;
+  return true;
 }
 
 export async function listUsers(): Promise<AuthUser[]> {
@@ -84,6 +91,7 @@ export async function createUser(input: {
   locked?: boolean;
   planId?: string | null;
   planExpiresAt?: string | null;
+  emailVerifiedAt?: string | null;
 }): Promise<AuthUser> {
   const store = await getDocumentStore();
   const email = input.email.trim().toLowerCase();
@@ -110,6 +118,10 @@ export async function createUser(input: {
     locked: Boolean(input.locked),
     planId,
     planExpiresAt: input.planExpiresAt ?? null,
+    emailVerifiedAt:
+      input.emailVerifiedAt === null
+        ? null
+        : input.emailVerifiedAt || new Date().toISOString(),
   };
   await store.put(COLLECTIONS.users, user);
   return user;
@@ -137,6 +149,7 @@ export async function updateUser(
     planExpiresAt: string | null;
     passwordHash: string | null;
     googleId: string | null;
+    emailVerifiedAt: string | null;
   }>,
 ): Promise<AuthUser> {
   const store = await getDocumentStore();
@@ -175,6 +188,9 @@ export async function updateUser(
   if (patch.googleId !== undefined) {
     cur.googleId = patch.googleId;
   }
+  if (patch.emailVerifiedAt !== undefined) {
+    cur.emailVerifiedAt = patch.emailVerifiedAt;
+  }
 
   await store.put(COLLECTIONS.users, cur);
   return cur;
@@ -183,6 +199,12 @@ export async function updateUser(
 export async function deleteUser(userId: string): Promise<boolean> {
   const store = await getDocumentStore();
   return store.delete(COLLECTIONS.users, userId);
+}
+
+export async function markEmailVerified(userId: string): Promise<AuthUser> {
+  return updateUser(userId, {
+    emailVerifiedAt: new Date().toISOString(),
+  });
 }
 
 export async function updateUserProfile(

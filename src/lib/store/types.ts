@@ -34,6 +34,7 @@ export const COLLECTIONS = {
   creditTransactions: "creditTransactions",
   planOrders: "planOrders",
   faqs: "faqs",
+  emailVerificationCodes: "emailVerificationCodes",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

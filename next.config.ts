@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     "ioredis",
     "pg",
     "@aws-sdk/client-s3",
+    "resend",
   ],
   experimental: {
     serverActions: {

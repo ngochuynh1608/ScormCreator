@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { EmailOtpForm } from "@/components/EmailOtpForm";
 
 type Mode = "login" | "signup";
+type LoginMethod = "password" | "otp";
 
 type PublicUser = {
   id: string;
@@ -35,10 +37,10 @@ export function AuthForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
-
-  useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>("password");
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     void fetch("/api/auth/me")
@@ -72,7 +74,16 @@ export function AuthForm({
         },
       );
       const data = await res.json();
+      if (res.status === 403 && data.needsVerification) {
+        setPendingVerifyEmail(email.trim().toLowerCase());
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "Thất bại");
+
+      if (data.needsVerification) {
+        setPendingVerifyEmail(email.trim().toLowerCase());
+        return;
+      }
 
       if (!redirectOnSuccess) {
         await onSuccess?.(data.user);
@@ -103,8 +114,12 @@ export function AuthForm({
           </p>
           <p className="mt-2 text-sm leading-relaxed text-[#3d5a66]">
             {mode === "login"
-              ? "Nhập email và mật khẩu để tiếp tục làm việc với bài giảng của bạn."
-              : "Chỉ cần vài thông tin — sau đó bạn có thể tải file và xuất SCORM ngay."}
+              ? loginMethod === "otp"
+                ? "Nhập email để nhận mã xác thực 6 số. Mã hết hạn sau 5 phút."
+                : "Nhập email và mật khẩu để tiếp tục làm việc với bài giảng của bạn."
+              : pendingVerifyEmail
+                ? "Nhập mã 6 số đã gửi đến email để kích hoạt tài khoản."
+                : "Chỉ cần vài thông tin — sau đó xác thực email bằng mã OTP."}
           </p>
         </>
       ) : (
@@ -113,65 +128,115 @@ export function AuthForm({
             {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-[#3d5a66]">
-            Đăng nhập hoặc tạo tài khoản để lưu trình chiếu vào workspace của bạn.
+            {mode === "login"
+              ? loginMethod === "otp"
+                ? "Nhận mã 6 số qua email để đăng nhập."
+                : "Đăng nhập hoặc tạo tài khoản để lưu trình chiếu vào workspace của bạn."
+              : "Đăng nhập hoặc tạo tài khoản để lưu trình chiếu vào workspace của bạn."}
           </p>
         </>
       )}
 
-      <form className="mt-6 space-y-3.5" onSubmit={(e) => void onSubmit(e)}>
-        {mode === "signup" ? (
+      {pendingVerifyEmail ? (
+        <div className="mt-6">
+          <EmailOtpForm
+            embedded
+            compact={compact}
+            variant="signup"
+            lockEmail
+            initialEmail={pendingVerifyEmail}
+            initialStep="otp"
+            nextPath={nextPath}
+            redirectOnSuccess={redirectOnSuccess}
+            onSuccess={onSuccess}
+          />
+        </div>
+      ) : mode === "login" && loginMethod === "otp" ? (
+        <div className="mt-6">
+          <EmailOtpForm
+            embedded
+            compact={compact}
+            nextPath={nextPath}
+            redirectOnSuccess={redirectOnSuccess}
+            onSuccess={onSuccess}
+            initialEmail={email}
+            onBack={() => setLoginMethod("password")}
+          />
+        </div>
+      ) : (
+        <form className="mt-6 space-y-3.5" onSubmit={(e) => void onSubmit(e)}>
+          {mode === "signup" ? (
+            <label className="auth-label">
+              Họ tên
+              <input
+                required
+                autoComplete="name"
+                placeholder="Nguyễn Văn A"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="auth-input"
+              />
+            </label>
+          ) : null}
           <label className="auth-label">
-            Họ tên
+            Email
             <input
               required
-              autoComplete="name"
-              placeholder="Nguyễn Văn A"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              type="email"
+              autoComplete="email"
+              placeholder="ban@congty.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="auth-input"
             />
           </label>
-        ) : null}
-        <label className="auth-label">
-          Email
-          <input
-            required
-            type="email"
-            autoComplete="email"
-            placeholder="ban@congty.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="auth-input"
-          />
-        </label>
-        <label className="auth-label">
-          Mật khẩu
-          <input
-            required
-            type="password"
-            autoComplete={
-              mode === "login" ? "current-password" : "new-password"
-            }
-            minLength={6}
-            placeholder={mode === "signup" ? "Tối thiểu 6 ký tự" : "••••••••"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="auth-input"
-          />
-        </label>
-        {error ? <p className="auth-error">{error}</p> : null}
-        <button type="submit" disabled={busy} className="auth-submit">
-          {busy
-            ? "Đang xử lý…"
-            : mode === "login"
-              ? compact
-                ? "Đăng nhập & tiếp tục"
-                : "Đăng nhập"
-              : compact
-                ? "Tạo tài khoản & tiếp tục"
-                : "Tạo tài khoản"}
-        </button>
-      </form>
+          <label className="auth-label">
+            Mật khẩu
+            <input
+              required
+              type="password"
+              autoComplete={
+                mode === "login" ? "current-password" : "new-password"
+              }
+              minLength={6}
+              placeholder={mode === "signup" ? "Tối thiểu 6 ký tự" : "••••••••"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="auth-input"
+            />
+          </label>
+          {error ? (
+            <p className="auth-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <button type="submit" disabled={busy} className="auth-submit">
+            {busy
+              ? "Đang xử lý…"
+              : mode === "login"
+                ? compact
+                  ? "Đăng nhập & tiếp tục"
+                  : "Đăng nhập"
+                : compact
+                  ? "Tạo tài khoản & tiếp tục"
+                  : "Tạo tài khoản"}
+          </button>
+          {mode === "login" ? (
+            <p className="text-center text-sm text-[#3d5a66]">
+              <button
+                type="button"
+                className="auth-text-btn"
+                onClick={() => {
+                  setError(null);
+                  setLoginMethod("otp");
+                }}
+              >
+                Đăng nhập bằng mã email
+              </button>
+            </p>
+          ) : null}
+        </form>
+      )}
 
       {!compact && googleEnabled ? (
         <>
@@ -195,7 +260,11 @@ export function AuthForm({
               <button
                 type="button"
                 className="font-semibold text-[#0a1f28] underline decoration-[#1aa86b] underline-offset-2"
-                onClick={() => setMode("signup")}
+                onClick={() => {
+                  setMode("signup");
+                  setLoginMethod("password");
+                  setPendingVerifyEmail(null);
+                }}
               >
                 Đăng ký
               </button>
@@ -215,7 +284,11 @@ export function AuthForm({
               <button
                 type="button"
                 className="font-semibold text-[#0a1f28] underline decoration-[#1aa86b] underline-offset-2"
-                onClick={() => setMode("login")}
+                onClick={() => {
+                  setMode("login");
+                  setLoginMethod("password");
+                  setPendingVerifyEmail(null);
+                }}
               >
                 Đăng nhập
               </button>

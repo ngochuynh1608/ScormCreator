@@ -89,6 +89,19 @@ async function main() {
   console.info(
     `[retention] done exportZips=${exportRemoved} guestProjects=${guestRemoved}`,
   );
+
+  try {
+    const { cleanupExpiredEmailOtps } = await import(
+      "../src/lib/auth/email-otp"
+    );
+    await cleanupExpiredEmailOtps();
+    console.info("[retention] cleaned expired email verification codes");
+  } catch (err) {
+    console.error(
+      "[retention] email otp cleanup failed",
+      err instanceof Error ? err.message : err,
+    );
+  }
 }
 
 main().catch((err) => {

@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/lib/auth/email-otp.test.ts src/lib/auth/rate-limit.test.ts src/lib/email/otp-template.test.ts src/lib/email/settings.test.ts",
     "worker": "tsx scripts/worker.ts",
     "retention": "tsx scripts/retention.ts",
     "docker:up": "docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.local.yml up -d --build",
@@ -33,6 +35,7 @@
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "resend": "^6.20.0",
     "uuid": "^14.0.1",
     "zod": "^4.4.3"
   },

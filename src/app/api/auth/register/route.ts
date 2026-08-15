@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { hashPassword } from "@/lib/auth/password";
-import {
-  attachSessionCookie,
-  createSessionToken,
-} from "@/lib/auth/session";
-import { createUser, findUserByEmail, toPublicUser } from "@/lib/auth/users";
-import { sessionPayloadFromUser } from "@/lib/auth/session-user";
+import { createUser, findUserByEmail } from "@/lib/auth/users";
+import { requestOtpAction } from "@/lib/auth/email-otp";
 
 export const runtime = "nodejs";
 
@@ -15,6 +11,15 @@ const schema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(6).max(100),
 });
+
+function clientIp(req: NextRequest) {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return req.headers.get("x-real-ip")?.trim() || "unknown";
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,14 +32,24 @@ export async function POST(req: NextRequest) {
       );
     }
     const passwordHash = await hashPassword(body.password);
-    const user = await createUser({
+    await createUser({
       email: body.email,
       name: body.name,
       passwordHash,
+      emailVerifiedAt: null,
     });
-    const token = await createSessionToken(await sessionPayloadFromUser(user));
-    const res = NextResponse.json({ user: toPublicUser(user) });
-    return attachSessionCookie(res, token);
+    const otp = await requestOtpAction(
+      { email: body.email },
+      { ip: clientIp(req) },
+    );
+    return NextResponse.json({
+      needsVerification: true,
+      sent: otp.status === 200 && otp.body.success === true,
+      message:
+        typeof otp.body.message === "string"
+          ? otp.body.message
+          : "If this email is eligible, a verification code has been sent.",
+    });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json(
@@ -42,8 +57,12 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+    console.error(
+      "register failed",
+      err instanceof Error ? err.message : "unknown",
+    );
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Đăng ký thất bại" },
+      { error: "Đăng ký thất bại" },
       { status: 500 },
     );
   }

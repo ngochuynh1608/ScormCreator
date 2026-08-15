@@ -11,6 +11,7 @@ const ITEMS = [
   { href: "/admin/transactions", label: "Lịch sử giao dịch", hint: "Đơn nạp & nâng cấp" },
   { href: "/admin/faq", label: "FAQ", hint: "Câu hỏi thường gặp" },
   { href: "/admin/tts", label: "Giọng đọc AI", hint: "API & mặc định" },
+  { href: "/admin/email", label: "Email OTP", hint: "Resend API" },
 ];
 
 export function AdminNav() {

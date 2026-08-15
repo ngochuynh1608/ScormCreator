@@ -5,9 +5,10 @@ import {
   attachSessionCookie,
   createSessionToken,
 } from "@/lib/auth/session";
-import { findUserByEmail, toPublicUser } from "@/lib/auth/users";
+import { findUserByEmail, isEmailVerified, toPublicUser } from "@/lib/auth/users";
 import { sessionPayloadFromUser } from "@/lib/auth/session-user";
 import { ensureDefaultAdmin } from "@/lib/auth/ensure-admin";
+import { requestOtpAction } from "@/lib/auth/email-otp";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,15 @@ const schema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1).max(100),
 });
+
+function clientIp(req: NextRequest) {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return req.headers.get("x-real-ip")?.trim() || "unknown";
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,6 +47,16 @@ export async function POST(req: NextRequest) {
     if (user.locked) {
       return NextResponse.json(
         { error: "Tài khoản đã bị khóa. Liên hệ quản trị viên." },
+        { status: 403 },
+      );
+    }
+    if (!isEmailVerified(user)) {
+      await requestOtpAction({ email: body.email }, { ip: clientIp(req) });
+      return NextResponse.json(
+        {
+          error: "Tài khoản chưa xác thực email. Nhập mã OTP đã gửi đến hộp thư.",
+          needsVerification: true,
+        },
         { status: 403 },
       );
     }

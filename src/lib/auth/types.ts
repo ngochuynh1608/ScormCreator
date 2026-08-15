@@ -15,6 +15,12 @@ export type AuthUser = {
   planId?: string | null;
   /** ISO timestamp; paid plans revert to free after this. */
   planExpiresAt?: string | null;
+  /**
+   * ISO timestamp when email was verified.
+   * `null` = pending verification (new password signups).
+   * omitted/undefined = legacy account, treated as verified.
+   */
+  emailVerifiedAt?: string | null;
 };
 
 export type PublicUser = {

@@ -1,0 +1,29 @@
+# Production / VPS: set CADDY_SITE=scormcreator.bitlearn.vn and CADDY_EMAIL in .env
+# DNS must point to this host (Cloudflare: DNS only / grey cloud). Ports 80+443 open.
+#
+# Local without a real domain: CADDY_SITE=localhost (Caddy uses internal TLS).
+
+{
+	# Optional Let's Encrypt account email (recommended on VPS)
+	email {$CADDY_EMAIL:}
+}
+
+{$CADDY_SITE:localhost} {
+	encode gzip zstd
+
+	# Match app MAX_UPLOAD_MB (~500) — no Cloudflare 100MB proxy limit when DNS-only
+	request_body {
+		max_size 512MB
+	}
+
+	reverse_proxy web:3000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+		transport http {
+			read_timeout 600s
+			write_timeout 600s
+			dial_timeout 30s
+		}
+	}
+}

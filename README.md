@@ -42,7 +42,8 @@ cp .env.docker.example .env.docker
 # 3) Build + chạy: nginx, web, worker, redis, postgres, minio
 npm run docker:up
 
-# App: http://localhost:8080  (local map 8080→80, tránh chiếm port 80 trên Windows)
+# App: http://localhost:8080  (Caddy local map 8080→80)
+# HTTPS local: https://localhost:8443 (internal cert)
 # MinIO console: http://localhost:9001
 npm run docker:ps
 npm run docker:logs

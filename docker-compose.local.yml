@@ -1,9 +1,12 @@
-# Local overrides: avoid binding host :80 (needs admin on Windows).
-# Usage: docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.local.yml up -d --build
+# Local overrides: Caddy on 8080/8443 so host :80/:443 are free.
+# Usage: npm run docker:up
 
 services:
-  nginx:
+  caddy:
     ports: !override
       - "8080:80"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      - "8443:443"
+      - "8443:443/udp"
+    environment:
+      CADDY_SITE: localhost
+      CADDY_EMAIL: ""

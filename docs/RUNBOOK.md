@@ -2,7 +2,8 @@
 
 ## Stack (Phương án 1 — one VPS)
 
-- `nginx` → `web` (Next.js)
+- `caddy` → HTTPS (Let’s Encrypt) → `web` (Next.js). Set `CADDY_SITE` + `CADDY_EMAIL` in `.env`.
+- Optional legacy `nginx` (HTTP only): `COMPOSE_PROFILES=nginx docker compose up -d`
 - `worker` (LibreOffice convert + TTS + SCORM export)
 - `redis` (BullMQ)
 - `postgres` (app document store when `DATABASE_URL` set)
@@ -10,16 +11,35 @@
 
 Shared volume `app_data` is mounted at `/data` on web and worker (`DATA_DIR`).
 
+## HTTPS with Caddy (no Cloudflare proxy)
+
+1. DNS **A** `scormcreator.bitlearn.vn` → VPS IP. If on Cloudflare: **DNS only** (grey cloud).
+2. Open firewall **80** and **443**.
+3. In `.env`:
+   ```bash
+   CADDY_SITE=scormcreator.bitlearn.vn
+   CADDY_EMAIL=you@example.com
+   NEXT_PUBLIC_APP_URL=https://scormcreator.bitlearn.vn
+   COOKIE_SECURE=true
+   ```
+4. Stop old nginx if running, then:
+   ```bash
+   docker compose stop nginx
+   docker compose up -d caddy web
+   docker compose logs -f caddy
+   ```
+5. Check: `curl -I https://scormcreator.bitlearn.vn/`
+
 ## Deploy
 
 ```bash
-cp .env.example .env   # set AUTH_SECRET, passwords, keys
+cp .env.example .env   # set AUTH_SECRET, passwords, keys, CADDY_SITE
 docker compose up -d --build
 ```
 
 Health checks:
 
-- App: `http://<host>/`
+- App: `https://<CADDY_SITE>/` (or `http://` until cert issues)
 - Admin metrics: `GET /api/admin/metrics` (admin session)
 - MinIO console: `:9001`
 

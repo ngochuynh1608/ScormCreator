@@ -1,12 +1,10 @@
-# Production / VPS: set CADDY_SITE=scormcreator.bitlearn.vn and CADDY_EMAIL in .env
+# Production / VPS: set CADDY_SITE=scormcreator.bitlearn.vn in .env
 # DNS must point to this host (Cloudflare: DNS only / grey cloud). Ports 80+443 open.
 #
+# Optional: add a global block with your email for Let's Encrypt notices:
+#   { email you@example.com }
+#
 # Local without a real domain: CADDY_SITE=localhost (Caddy uses internal TLS).
-
-{
-	# Optional Let's Encrypt account email (recommended on VPS)
-	email {$CADDY_EMAIL:}
-}
 
 {$CADDY_SITE:localhost} {
 	encode gzip zstd

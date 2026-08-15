@@ -1,12 +1,10 @@
-# Local overrides: Caddy on 8080/8443 so host :80/:443 are free.
+# Local overrides: Caddy on 8080 (HTTP only — no auto-HTTPS redirect to :443).
 # Usage: npm run docker:up
 
 services:
   caddy:
     ports: !override
       - "8080:80"
-      - "8443:443"
-      - "8443:443/udp"
     environment:
-      CADDY_SITE: localhost
-      CADDY_EMAIL: ""
+      # http:// prefix disables automatic HTTPS for local Docker
+      CADDY_SITE: http://localhost

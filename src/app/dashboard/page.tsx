@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CreditBalanceButton } from "@/components/CreditBalanceButton";
-import { ProjectCard } from "@/components/ProjectCard";
+import { ProjectCard, ProjectCardSkeleton } from "@/components/ProjectCard";
 import { UploadZone } from "@/components/UploadZone";
 import { UserMenu } from "@/components/UserMenu";
 import type { Project } from "@/lib/types";
@@ -151,11 +151,20 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        {loading ? (
-          <p className="text-sm text-[#5b6b7c]">Đang tải danh sách…</p>
-        ) : null}
         {error ? (
           <p className="text-sm font-medium text-[#c45c26]">{error}</p>
+        ) : null}
+
+        {loading ? (
+          <div
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            aria-busy="true"
+            aria-label="Đang tải danh sách trình chiếu"
+          >
+            {Array.from({ length: 6 }, (_, i) => (
+              <ProjectCardSkeleton key={i} />
+            ))}
+          </div>
         ) : null}
 
         {!loading && !error && projects.length === 0 ? (
@@ -181,34 +190,40 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((p) => (
-            <ProjectCard
-              key={p.id}
-              project={p}
-              onDeleted={(id) => {
-                setProjects((prev) => prev.filter((x) => x.id !== id));
-                setUsage((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        presentationsUsed: Math.max(0, prev.presentationsUsed - 1),
-                      }
-                    : prev,
-                );
-              }}
-              onRenamed={(id, title) =>
-                setProjects((prev) =>
-                  prev.map((x) =>
-                    x.id === id
-                      ? { ...x, title, updatedAt: new Date().toISOString() }
-                      : x,
-                  ),
-                )
-              }
-            />
-          ))}
-        </div>
+        {!loading && !error && projects.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((p, i) => (
+              <ProjectCard
+                key={p.id}
+                project={p}
+                priority={i < 3}
+                onDeleted={(id) => {
+                  setProjects((prev) => prev.filter((x) => x.id !== id));
+                  setUsage((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          presentationsUsed: Math.max(
+                            0,
+                            prev.presentationsUsed - 1,
+                          ),
+                        }
+                      : prev,
+                  );
+                }}
+                onRenamed={(id, title) =>
+                  setProjects((prev) =>
+                    prev.map((x) =>
+                      x.id === id
+                        ? { ...x, title, updatedAt: new Date().toISOString() }
+                        : x,
+                    ),
+                  )
+                }
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {upgradeOpen ? (

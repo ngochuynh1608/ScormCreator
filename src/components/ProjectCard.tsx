@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ConfirmDeleteSlideModal,
   NoticeModal,
@@ -23,14 +23,34 @@ function firstSlideThumb(project: Project): string | null {
   return fileUrl(project.id, withThumb?.thumbnailPath);
 }
 
+export function ProjectCardSkeleton() {
+  return (
+    <article
+      className="overflow-hidden rounded-[24px] border border-[#e2e8ef] bg-white shadow-sm"
+      aria-hidden
+    >
+      <div className="relative aspect-video">
+        <div className="media-skeleton" />
+      </div>
+      <div className="p-5">
+        <div className="media-skeleton-bone h-3 w-20 rounded-full" />
+        <div className="media-skeleton-bone mt-3 h-5 w-4/5" />
+        <div className="media-skeleton-bone mt-2 h-4 w-2/3" />
+      </div>
+    </article>
+  );
+}
+
 export function ProjectCard({
   project,
   onDeleted,
   onRenamed,
+  priority = false,
 }: {
   project: Project;
   onDeleted: (id: string) => void;
   onRenamed?: (id: string, title: string) => void;
+  priority?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -42,9 +62,20 @@ export function ProjectCard({
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(
     null,
   );
+  const [thumbReady, setThumbReady] = useState(false);
+  const [thumbFailed, setThumbFailed] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const thumb = firstSlideThumb(project);
+
+  useEffect(() => {
+    setThumbReady(false);
+    setThumbFailed(false);
+  }, [thumb]);
+
+  const bindThumbImg = useCallback((el: HTMLImageElement | null) => {
+    if (el?.complete && el.naturalWidth > 0) setThumbReady(true);
+  }, []);
 
   useEffect(() => {
     if (!renaming) setDraftTitle(project.title);
@@ -157,9 +188,28 @@ export function ProjectCard({
           if (renaming) e.preventDefault();
         }}
       >
-        <div className="relative aspect-video bg-[#eef3f8]">
-          {thumb ? (
-            <img src={thumb} alt="" className="h-full w-full object-cover" />
+        <div className="relative aspect-video overflow-hidden bg-[#eef3f8]">
+          {thumb && !thumbFailed ? (
+            <>
+              {!thumbReady ? (
+                <div className="media-skeleton" aria-hidden />
+              ) : null}
+              <img
+                ref={bindThumbImg}
+                src={thumb}
+                alt=""
+                loading={priority ? "eager" : "lazy"}
+                decoding="async"
+                onLoad={() => setThumbReady(true)}
+                onError={() => {
+                  setThumbFailed(true);
+                  setThumbReady(true);
+                }}
+                className={`h-full w-full object-cover transition-opacity duration-300 motion-reduce:transition-none ${
+                  thumbReady ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            </>
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-[#8a98a8]">
               <span className="text-sm font-semibold">Chưa có ảnh slide</span>

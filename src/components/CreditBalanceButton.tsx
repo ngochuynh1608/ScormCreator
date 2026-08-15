@@ -6,8 +6,10 @@ import { createPortal } from "react-dom";
 
 export function CreditBalanceButton({
   creditsAvailable,
+  compact = false,
 }: {
   creditsAvailable: number;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
@@ -96,7 +98,11 @@ export function CreditBalanceButton({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full border border-[#c9d8e2] bg-white px-3 text-sm font-bold leading-none text-[#0f2a36]"
+        className={`inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border border-[#c9d8e2] bg-white font-bold leading-none text-[#0f2a36] ${
+          compact
+            ? "h-9 shrink-0 px-2.5 text-xs"
+            : "h-9 px-3 text-sm"
+        }`}
       >
         <CreditCoinIcon />
         {creditsAvailable.toLocaleString("vi-VN")}

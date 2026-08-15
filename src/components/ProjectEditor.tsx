@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { v4 as uuidv4 } from "uuid";
 import type {
@@ -45,6 +45,7 @@ import {
 } from "@/components/SlideModals";
 import { AuthForm } from "@/components/AuthForm";
 import { SlideStageView } from "@/components/SlideStageView";
+import { UserMenu } from "@/components/UserMenu";
 
 function fileUrl(
   projectId: string,
@@ -62,6 +63,10 @@ type TtsSlideUiStatus = {
   error?: string;
 };
 
+function slideHasThumb(slide: Slide): slide is ContentSlide {
+  return slide.type === "content" && !slide.blank && Boolean(slide.thumbnailPath);
+}
+
 function SortableThumb({
   slide,
   index,
@@ -72,6 +77,8 @@ function SortableThumb({
   onRequestReplace,
   onRequestAddSlide,
   ttsStatus,
+  loadThumb = true,
+  onThumbSettled,
 }: {
   slide: Slide;
   index: number;
@@ -82,6 +89,8 @@ function SortableThumb({
   onRequestReplace: () => void;
   onRequestAddSlide: () => void;
   ttsStatus?: TtsSlideUiStatus | null;
+  loadThumb?: boolean;
+  onThumbSettled?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: slide.id });
@@ -103,6 +112,39 @@ function SortableThumb({
   const hasVideo =
     slide.type === "content" && !slide.blank && Boolean(slide.videoPath);
   const isBlank = slide.type === "content" && Boolean(slide.blank);
+  const [thumbReady, setThumbReady] = useState(false);
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const thumbSettledRef = useRef(false);
+  const onThumbSettledRef = useRef(onThumbSettled);
+  onThumbSettledRef.current = onThumbSettled;
+
+  useEffect(() => {
+    setThumbReady(false);
+    setThumbFailed(false);
+    thumbSettledRef.current = false;
+  }, [thumb]);
+
+  const settleThumb = useCallback(() => {
+    if (thumbSettledRef.current) return;
+    thumbSettledRef.current = true;
+    onThumbSettledRef.current?.();
+  }, []);
+
+  const bindThumbImg = useCallback(
+    (el: HTMLImageElement | null) => {
+      if (el?.complete && el.naturalWidth > 0) {
+        setThumbReady(true);
+        settleThumb();
+      }
+    },
+    [settleThumb],
+  );
+
+  useEffect(() => {
+    if (!loadThumb || !thumb || thumbReady) return;
+    const t = window.setTimeout(() => settleThumb(), 8000);
+    return () => window.clearTimeout(t);
+  }, [loadThumb, thumb, thumbReady, settleThumb]);
 
   function openMenu() {
     const rect = menuBtnRef.current?.getBoundingClientRect();
@@ -210,8 +252,33 @@ function SortableThumb({
             <span className="text-xs font-semibold">Slide trống</span>
           </div>
         ) : thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumb} alt="" draggable={false} />
+          <div className="slide-thumb-media mb-2">
+            {!thumbReady ? (
+              <div className="media-skeleton" aria-hidden />
+            ) : null}
+            {loadThumb && !thumbFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                ref={bindThumbImg}
+                src={thumb}
+                alt=""
+                draggable={false}
+                decoding="async"
+                onLoad={() => {
+                  setThumbReady(true);
+                  settleThumb();
+                }}
+                onError={() => {
+                  setThumbFailed(true);
+                  setThumbReady(true);
+                  settleThumb();
+                }}
+                className={`transition-opacity duration-300 motion-reduce:transition-none ${
+                  thumbReady ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            ) : null}
+          </div>
         ) : (
           <div className="slide-thumb-media mb-2 flex items-center justify-center bg-[#e8eef2] text-xs text-[#8a98a8]">
             Không có ảnh
@@ -361,6 +428,57 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   const [authGateOpen, setAuthGateOpen] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [slidesDrawerOpen, setSlidesDrawerOpen] = useState(false);
+  const [user, setUser] = useState<{
+    id: string;
+    email: string;
+    name: string;
+  } | null>(null);
+  const downloadBtnRef = useRef<HTMLButtonElement | null>(null);
+  const downloadPanelRef = useRef<HTMLDivElement | null>(null);
+  const [downloadMenuPos, setDownloadMenuPos] = useState<{
+    top: number;
+    right: number;
+  } | null>(null);
+  const [thumbLoadStarted, setThumbLoadStarted] = useState(false);
+  const [settledThumbs, setSettledThumbs] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const thumbQueueIds = useMemo(
+    () => (project?.slides || []).filter(slideHasThumb).map((s) => s.id),
+    [project],
+  );
+
+  useEffect(() => {
+    setSettledThumbs(new Set());
+    setThumbLoadStarted(false);
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const t = window.setTimeout(
+      () => setThumbLoadStarted(true),
+      reduceMotion ? 0 : 80,
+    );
+    return () => window.clearTimeout(t);
+  }, [projectId]);
+
+  const nextThumbId = thumbLoadStarted
+    ? thumbQueueIds.find((id) => !settledThumbs.has(id))
+    : undefined;
+
+  const onThumbSettled = useCallback((slideId: string) => {
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const delay = reduceMotion ? 0 : 120;
+    window.setTimeout(() => {
+      setSettledThumbs((prev) => {
+        if (prev.has(slideId)) return prev;
+        const next = new Set(prev);
+        next.add(slideId);
+        return next;
+      });
+    }, delay);
+  }, []);
 
   useEffect(() => {
     if (!slidesDrawerOpen) return;
@@ -455,6 +573,18 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     void load().catch((e) => setMessage(e.message));
     void loadTtsSettings().catch((e) => setMessage(e.message));
     void loadCredits();
+    void fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.user?.id) {
+          setUser({
+            id: d.user.id,
+            email: d.user.email || "",
+            name: d.user.name || "",
+          });
+        }
+      })
+      .catch(() => {});
   }, [load, loadTtsSettings, loadCredits]);
 
   /** Poll while PPTX/PDF convert is queued or running on the worker. */
@@ -1092,21 +1222,47 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     }
   }
 
+  useLayoutEffect(() => {
+    if (!downloadOpen || exporting) {
+      setDownloadMenuPos(null);
+      return;
+    }
+    const rect = downloadBtnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setDownloadMenuPos({
+      top: rect.bottom + 8,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  }, [downloadOpen, exporting]);
+
   useEffect(() => {
     if (!downloadOpen) return;
     function onDocClick(e: MouseEvent) {
-      if (!downloadMenuRef.current?.contains(e.target as Node)) {
-        setDownloadOpen(false);
-      }
+      const t = e.target as Node;
+      if (downloadMenuRef.current?.contains(t)) return;
+      if (downloadPanelRef.current?.contains(t)) return;
+      setDownloadOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setDownloadOpen(false);
     }
+    function onReposition() {
+      const rect = downloadBtnRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setDownloadMenuPos({
+        top: rect.bottom + 8,
+        right: Math.max(8, window.innerWidth - rect.right),
+      });
+    }
     document.addEventListener("mousedown", onDocClick);
     window.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
     };
   }, [downloadOpen]);
 
@@ -1340,128 +1496,168 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
 
   return (
     <div className="min-h-screen">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#c9d8e2] bg-white/70 px-4 py-3 backdrop-blur md:px-6">
-        <div className="flex min-w-0 items-start gap-2.5">
-          <Link
-            href="/dashboard"
-            aria-label="Quay lại danh sách trình chiếu"
-            title="Quay lại"
-            className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d7e2ea] bg-white text-[#0f2a36] transition hover:bg-[#f4f7fa]"
-          >
-            <BackArrowIcon />
-          </Link>
-          <div className="min-w-0">
-            <Link
-              href="/dashboard"
-              className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] transition hover:text-[#0f2a36]"
-            >
-              ScormCreator
-            </Link>
-            <input
-              className="brand-font mt-1 block w-full max-w-lg border-0 bg-transparent text-xl font-semibold outline-none"
-              value={project.title}
-              onChange={(e) => setProject({ ...project, title: e.target.value })}
-              onBlur={() =>
-                void persist(projectRef.current || project, { immediate: true })
-              }
-            />
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {!project.ownerId ? (
-            <button
-              type="button"
-              onClick={() => setAuthGateOpen(true)}
-              className="inline-flex h-9 items-center rounded-full border border-[#f0c36a] bg-[#fff6df] px-3 text-xs font-bold text-[#6a4b00]"
-            >
-              Đăng nhập để lưu
-            </button>
-          ) : null}
-          <div
-            className="inline-flex items-center gap-1 rounded-full border border-[#d7e2ea] bg-[#f4f7fa] p-1"
-            role="group"
-            aria-label="Xem trước và chia sẻ"
-          >
-            <Link
-              href={`/projects/${projectId}/preview`}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-[#0f2a36] transition hover:bg-white hover:shadow-sm"
-            >
-              <PreviewIcon />
-              Xem trước
-            </Link>
-            <span className="h-4 w-px bg-[#d7e2ea]" aria-hidden />
-            <button
-              type="button"
-              onClick={() => void sharePreviewLink()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-[#0f2a36] transition hover:bg-white hover:shadow-sm"
-            >
-              <ShareIcon />
-              Chia sẻ
-            </button>
-          </div>
-          <div className="relative" ref={downloadMenuRef}>
-            <button
-              type="button"
-              disabled={!!exporting}
-              aria-haspopup="menu"
-              aria-expanded={downloadOpen && !exporting}
-              onClick={() => setDownloadOpen((v) => !v)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#2bb673] px-3.5 text-xs font-bold text-[#083024] shadow-sm transition hover:bg-[#24a366] disabled:opacity-50"
-            >
-              <DownloadIcon />
-              {exporting ? `Đang xuất ${exporting}…` : "Xuất SCORM"}
-              <ChevronDownIcon />
-            </button>
-            {downloadOpen && !exporting ? (
-              <div
-                role="menu"
-                className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-[#e2e8ef] bg-white py-1 shadow-lg"
+      <header className="relative z-[60] border-b border-[#c9d8e2] bg-white/70 px-4 py-3 backdrop-blur md:px-6">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Link
+                href="/dashboard"
+                aria-label="Quay lại danh sách trình chiếu"
+                title="Quay lại"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d7e2ea] bg-white text-[#0f2a36] transition hover:bg-[#f4f7fa]"
               >
-                <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-[#8a98a8]">
-                  Gói học LMS
-                </p>
+                <BackArrowIcon />
+              </Link>
+              <div className="min-w-0">
+                <Link
+                  href="/dashboard"
+                  className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] transition hover:text-[#0f2a36]"
+                >
+                  ScormCreator
+                </Link>
+                <input
+                  className="brand-font mt-0.5 block w-full max-w-lg truncate border-0 bg-transparent text-base font-semibold outline-none md:text-xl"
+                  value={project.title}
+                  onChange={(e) => setProject({ ...project, title: e.target.value })}
+                  onBlur={() =>
+                    void persist(projectRef.current || project, { immediate: true })
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 md:hidden">
+              {!project.ownerId ? (
                 <button
                   type="button"
-                  role="menuitem"
-                  className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[#f3f6f9]"
-                  onClick={() => {
-                    setDownloadOpen(false);
-                    void exportScorm("1.2");
-                  }}
+                  onClick={() => setAuthGateOpen(true)}
+                  className="inline-flex h-9 items-center rounded-full border border-[#f0c36a] bg-[#fff6df] px-2.5 text-xs font-bold text-[#6a4b00]"
                 >
-                  <span className="mt-0.5 text-[#2bb673]">
-                    <DownloadIcon />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-[#0f2a36]">
-                      SCORM 1.2
-                    </span>
-                    <span className="block text-[11px] font-medium text-[#8a98a8]">
-                      Phổ biến với hầu hết LMS
-                    </span>
-                  </span>
+                  Đăng nhập
                 </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[#f3f6f9]"
-                  onClick={() => {
-                    setDownloadOpen(false);
-                    void exportScorm("2004");
-                  }}
-                >
-                  <span className="mt-0.5 text-[#2bb673]">
-                    <DownloadIcon />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-[#0f2a36]">
-                      SCORM 2004
-                    </span>
-                    <span className="block text-[11px] font-medium text-[#8a98a8]">
-                      Chuẩn mới hơn, hỗ trợ tốt hơn
-                    </span>
-                  </span>
-                </button>
+              ) : null}
+              {user ? <UserMenu user={user} /> : null}
+            </div>
+          </div>
+
+          <div className="flex min-w-0 items-center gap-2">
+            {!project.ownerId ? (
+              <button
+                type="button"
+                onClick={() => setAuthGateOpen(true)}
+                className="hidden h-9 items-center rounded-full border border-[#f0c36a] bg-[#fff6df] px-3 text-xs font-bold text-[#6a4b00] md:inline-flex"
+              >
+                Đăng nhập để lưu
+              </button>
+            ) : null}
+            <div
+              className="inline-flex min-w-0 flex-1 items-center rounded-full border border-[#d7e2ea] bg-[#f4f7fa] p-1 md:flex-none"
+              role="group"
+              aria-label="Xem trước và chia sẻ"
+            >
+              <Link
+                href={`/projects/${projectId}/preview`}
+                title="Xem trước"
+                className="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs font-semibold text-[#0f2a36] transition hover:bg-white hover:shadow-sm md:flex-none md:px-3"
+              >
+                <PreviewIcon />
+                <span className="truncate">Xem trước</span>
+              </Link>
+              <span className="h-4 w-px shrink-0 bg-[#d7e2ea]" aria-hidden />
+              <button
+                type="button"
+                title="Chia sẻ"
+                onClick={() => void sharePreviewLink()}
+                className="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs font-semibold text-[#0f2a36] transition hover:bg-white hover:shadow-sm md:flex-none md:px-3"
+              >
+                <ShareIcon />
+                <span className="truncate">Chia sẻ</span>
+              </button>
+            </div>
+            <div className="relative shrink-0" ref={downloadMenuRef}>
+              <button
+                ref={downloadBtnRef}
+                type="button"
+                disabled={!!exporting}
+                aria-haspopup="menu"
+                aria-expanded={downloadOpen && !exporting}
+                onClick={() => setDownloadOpen((v) => !v)}
+                className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#2bb673] px-3 text-xs font-bold text-[#083024] shadow-sm transition hover:bg-[#24a366] disabled:opacity-50 md:px-3.5"
+              >
+                <DownloadIcon />
+                {exporting ? (
+                  <span>Đang xuất…</span>
+                ) : (
+                  <>
+                    <span className="md:hidden">Xuất</span>
+                    <span className="hidden md:inline">Xuất SCORM</span>
+                  </>
+                )}
+                <ChevronDownIcon />
+              </button>
+              {downloadOpen && !exporting && downloadMenuPos
+                ? createPortal(
+                    <div
+                      ref={downloadPanelRef}
+                      role="menu"
+                      style={{
+                        top: downloadMenuPos.top,
+                        right: downloadMenuPos.right,
+                      }}
+                      className="fixed z-[120] w-56 overflow-hidden rounded-2xl border border-[#e2e8ef] bg-white py-1 shadow-lg"
+                    >
+                      <p className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-[#8a98a8]">
+                        Gói học LMS
+                      </p>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[#f3f6f9]"
+                        onClick={() => {
+                          setDownloadOpen(false);
+                          void exportScorm("1.2");
+                        }}
+                      >
+                        <span className="mt-0.5 text-[#2bb673]">
+                          <DownloadIcon />
+                        </span>
+                        <span>
+                          <span className="block text-sm font-semibold text-[#0f2a36]">
+                            SCORM 1.2
+                          </span>
+                          <span className="block text-[11px] font-medium text-[#8a98a8]">
+                            Phổ biến với hầu hết LMS
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[#f3f6f9]"
+                        onClick={() => {
+                          setDownloadOpen(false);
+                          void exportScorm("2004");
+                        }}
+                      >
+                        <span className="mt-0.5 text-[#2bb673]">
+                          <DownloadIcon />
+                        </span>
+                        <span>
+                          <span className="block text-sm font-semibold text-[#0f2a36]">
+                            SCORM 2004
+                          </span>
+                          <span className="block text-[11px] font-medium text-[#8a98a8]">
+                            Chuẩn mới hơn, hỗ trợ tốt hơn
+                          </span>
+                        </span>
+                      </button>
+                    </div>,
+                    document.body,
+                  )
+                : null}
+            </div>
+            {user ? (
+              <div className="hidden shrink-0 md:block">
+                <UserMenu user={user} />
               </div>
             ) : null}
           </div>
@@ -1541,6 +1737,10 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                     index={index}
                     active={slide.id === selectedId}
                     ttsStatus={ttsSlideStatus[slide.id] || null}
+                    loadThumb={
+                      settledThumbs.has(slide.id) || slide.id === nextThumbId
+                    }
+                    onThumbSettled={() => onThumbSettled(slide.id)}
                     onSelect={() => {
                       setSelectedId(slide.id);
                       setSlidesDrawerOpen(false);

@@ -80,58 +80,97 @@ export default function DashboardPage() {
     setShowUpload((v) => !v);
   }
 
+  const usagePills = usage ? (
+    <>
+      <CreditBalanceButton creditsAvailable={usage.creditsAvailable} />
+      <span className="inline-flex h-9 items-center whitespace-nowrap rounded-full border border-[#c9d8e2] bg-white px-3 text-sm font-bold leading-none text-[#0f2a36]">
+        Trình chiếu {usage.presentationsUsed.toLocaleString("vi-VN")}
+        <span className="font-bold text-[#8a98a8]">
+          {" "}
+          / {usage.presentationsLimit.toLocaleString("vi-VN")}
+        </span>
+      </span>
+    </>
+  ) : null;
+
   return (
     <main className="min-h-screen">
-      <header className="relative z-50 flex flex-wrap items-center justify-between gap-3 border-b border-[#c9d8e2] bg-white/75 px-4 py-4 backdrop-blur md:px-8">
-        <div>
-          <Link
-            href="/"
-            className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]"
-          >
-            ScormCreator
-          </Link>
-          <p className="brand-font text-xl font-semibold text-[#0f2a36]">
-            Trình chiếu của tôi
-          </p>
-          {user ? (
-            <p className="text-sm text-[#5b6b7c]">
-              Xin chào, {user.name} · {user.email}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {usage ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <CreditBalanceButton
-                creditsAvailable={usage.creditsAvailable}
-              />
-              <span className="inline-flex h-9 items-center rounded-full border border-[#c9d8e2] bg-white px-3 text-sm font-bold leading-none text-[#0f2a36]">
-                Trình chiếu {usage.presentationsUsed.toLocaleString("vi-VN")}
-                <span className="font-bold text-[#8a98a8]">
-                  {" "}
-                  / {usage.presentationsLimit.toLocaleString("vi-VN")}
+      <header className="relative z-50 border-b border-[#c9d8e2] bg-white/75 px-4 py-4 backdrop-blur md:px-8">
+        <div className="flex items-center gap-2 md:hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            {usage ? (
+              <>
+                <CreditBalanceButton
+                  compact
+                  creditsAvailable={usage.creditsAvailable}
+                />
+                <span className="inline-flex h-9 min-w-0 items-center truncate whitespace-nowrap rounded-full border border-[#c9d8e2] bg-white px-2.5 text-xs font-bold leading-none text-[#0f2a36]">
+                  <span className="max-[340px]:hidden">Trình chiếu </span>
+                  {usage.presentationsUsed.toLocaleString("vi-VN")}
+                  <span className="font-bold text-[#8a98a8]">
+                    {" "}
+                    / {usage.presentationsLimit.toLocaleString("vi-VN")}
+                  </span>
                 </span>
-              </span>
+              </>
+            ) : null}
+          </div>
+          {user ? (
+            <div className="shrink-0">
+              <UserMenu user={user} />
             </div>
           ) : null}
-          <button
-            type="button"
-            onClick={requestCreate}
-            aria-disabled={atPresentationLimit && !showUpload}
-            title={
-              atPresentationLimit
-                ? "Đã đạt hạn mức trình chiếu của gói. Nâng cấp để tạo thêm."
-                : undefined
-            }
-            className={`rounded-full px-4 py-2 text-sm font-bold ${
-              atPresentationLimit && !showUpload
-                ? "cursor-pointer bg-[#d5dee6] text-[#6b7c8d]"
-                : "cursor-pointer bg-[#2bb673] text-[#083024]"
-            }`}
-          >
-            {showUpload ? "Đóng upload" : "+ Tạo trình chiếu"}
-          </button>
-          {user ? <UserMenu user={user} /> : null}
+        </div>
+        {user ? (
+          <p className="mt-1.5 min-w-0 truncate text-sm text-[#5b6b7c] md:hidden">
+            Xin chào, {user.name}
+          </p>
+        ) : null}
+
+        <div className="mt-3 flex flex-col gap-3 md:mt-0 md:flex-row md:flex-wrap md:items-center md:justify-between">
+          <div>
+            <Link
+              href="/"
+              className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]"
+            >
+              ScormCreator
+            </Link>
+            <p className="brand-font text-xl font-semibold text-[#0f2a36]">
+              Trình chiếu của tôi
+            </p>
+            {user ? (
+              <p className="mt-1 hidden text-sm text-[#5b6b7c] md:block">
+                Xin chào, {user.name}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 md:justify-end">
+            <div className="hidden flex-wrap items-center gap-2 md:flex">
+              {usagePills}
+            </div>
+            <button
+              type="button"
+              onClick={requestCreate}
+              aria-disabled={atPresentationLimit && !showUpload}
+              title={
+                atPresentationLimit
+                  ? "Đã đạt hạn mức trình chiếu của gói. Nâng cấp để tạo thêm."
+                  : undefined
+              }
+              className={`min-h-11 w-full rounded-full px-4 py-2 text-sm font-bold md:min-h-0 md:w-auto ${
+                atPresentationLimit && !showUpload
+                  ? "cursor-pointer bg-[#d5dee6] text-[#6b7c8d]"
+                  : "cursor-pointer bg-[#2bb673] text-[#083024]"
+              }`}
+            >
+              {showUpload ? "Đóng upload" : "+ Tạo trình chiếu"}
+            </button>
+            {user ? (
+              <div className="hidden shrink-0 md:block">
+                <UserMenu user={user} />
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 

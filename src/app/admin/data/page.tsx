@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ConfirmTypeDeleteModal } from "@/components/ConfirmTypeDeleteModal";
 import { formatBytes } from "@/lib/format";
 
 type OrphanReason = "unassigned" | "missing-user";
@@ -43,6 +44,7 @@ export default function AdminDataPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<string[] | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,14 +95,21 @@ export default function AdminDataPage() {
     });
   }
 
+  function requestRemove(ids: string[]) {
+    if (ids.length === 0) return;
+    setPendingIds(ids);
+  }
+
+  const pendingProjects = useMemo(
+    () =>
+      pendingIds
+        ? projects.filter((p) => pendingIds.includes(p.id))
+        : [],
+    [pendingIds, projects],
+  );
+
   async function remove(ids: string[]) {
     if (ids.length === 0) return;
-    const ok = window.confirm(
-      ids.length === 1
-        ? "Xóa bài giảng này? Không hoàn tác được."
-        : `Xóa ${ids.length} bài giảng chưa gán user? Không hoàn tác được.`,
-    );
-    if (!ok) return;
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -114,6 +123,7 @@ export default function AdminDataPage() {
       if (!res.ok) throw new Error(data.error || "Xóa thất bại");
       const freed = formatBytes(Number(data.freedBytes) || 0);
       setMessage(`Đã xóa ${data.deleted || 0} bài giảng, giải phóng ${freed}.`);
+      setPendingIds(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xóa thất bại");
@@ -145,7 +155,7 @@ export default function AdminDataPage() {
             type="button"
             className="admin-btn-dark"
             disabled={busy || selected.size === 0}
-            onClick={() => void remove([...selected])}
+            onClick={() => requestRemove([...selected])}
           >
             {busy ? "Đang xóa…" : `Xóa đã chọn (${selected.size})`}
           </button>
@@ -233,7 +243,7 @@ export default function AdminDataPage() {
                     type="button"
                     className="admin-link admin-link-danger"
                     disabled={busy}
-                    onClick={() => void remove([p.id])}
+                    onClick={() => requestRemove([p.id])}
                   >
                     Xóa
                   </button>
@@ -243,6 +253,30 @@ export default function AdminDataPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmTypeDeleteModal
+        open={Boolean(pendingIds?.length)}
+        title={
+          pendingProjects.length === 1
+            ? "Xóa bài giảng?"
+            : `Xóa ${pendingIds?.length || 0} bài giảng?`
+        }
+        description={
+          pendingProjects.length === 1
+            ? `Bài giảng “${pendingProjects[0]?.title || ""}” sẽ bị xóa khỏi hệ thống.`
+            : `${pendingIds?.length || 0} bài giảng chưa gán user sẽ bị xóa khỏi hệ thống.`
+        }
+        confirmLabel={
+          pendingProjects.length === 1 ? "Xóa bài giảng" : "Xóa đã chọn"
+        }
+        busy={busy}
+        onCancel={() => {
+          if (!busy) setPendingIds(null);
+        }}
+        onConfirm={() => {
+          if (pendingIds) void remove(pendingIds);
+        }}
+      />
     </section>
   );
 }

@@ -20,7 +20,7 @@ export default async function HomePage() {
           href="/"
           className="brand-font shrink-0 text-[15px] font-semibold tracking-tight text-[#0a1f28]"
         >
-          ScormCreator
+          Scorm Pro
         </Link>
 
         <nav
@@ -86,7 +86,7 @@ export default async function HomePage() {
           <div className="home-ed">
             <header className="home-ed-top">
               <div className="home-ed-top-left">
-                <span className="home-ed-brand">SCORMCREATOR</span>
+                <span className="home-ed-brand">SCORM PRO</span>
                 <span className="home-ed-title">Bài giảng hội nhập</span>
               </div>
               <div className="home-ed-top-actions">
@@ -157,7 +157,7 @@ export default async function HomePage() {
         <div className="relative z-10 mx-auto flex min-h-[calc(100svh-5.5rem)] max-w-[1200px] flex-col justify-center px-5 pb-16 pt-6 md:px-10 lg:px-14">
           <div className="home-hero-copy max-w-md lg:max-w-lg">
             <p className="home-hero-brand brand-font text-[clamp(2.75rem,8vw,5.75rem)] font-semibold leading-[0.92] tracking-[-0.04em] text-[#0a1f28]">
-              ScormCreator
+              Scorm Pro
             </p>
             <h1 className="home-hero-line mt-6 max-w-xl text-[clamp(1.35rem,3.2vw,2rem)] font-semibold leading-snug tracking-tight text-[#0a1f28]">
               PowerPoint thành bài giảng SCORM trong vài phút.
@@ -291,7 +291,7 @@ export default async function HomePage() {
       <footer className="border-t border-[#d5e4ea] bg-white px-5 py-8 md:px-10 lg:px-14">
         <div className="mx-auto flex max-w-[1200px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="brand-font text-sm font-semibold text-[#0a1f28]">
-            ScormCreator
+            Scorm Pro
           </p>
           <div className="flex flex-wrap gap-4 text-sm text-[#5b7380]">
             <a href="#bang-gia" className="hover:text-[#0a1f28]">

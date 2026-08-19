@@ -153,7 +153,7 @@ export default function DashboardPage() {
               href="/"
               className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]"
             >
-              ScormCreator
+              Scorm Pro
             </Link>
             <p className="brand-font text-xl font-semibold text-[#0f2a36]">
               Trình chiếu của tôi

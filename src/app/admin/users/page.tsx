@@ -6,6 +6,7 @@ import type { CreditSnapshot } from "@/lib/credits/types";
 import type { StorageSnapshot } from "@/lib/auth/quota";
 import { formatBytes } from "@/lib/format";
 import { AdminActionsMenu } from "@/components/AdminActionsMenu";
+import { ConfirmTypeDeleteModal } from "@/components/ConfirmTypeDeleteModal";
 
 type Draft = {
   name: string;
@@ -61,6 +62,7 @@ export default function AdminUsersPage() {
   const [grantNote, setGrantNote] = useState("");
   const [storageUser, setStorageUser] = useState<PublicUser | null>(null);
   const [storageAmount, setStorageAmount] = useState("100");
+  const [deleteUser, setDeleteUser] = useState<PublicUser | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -184,7 +186,6 @@ export default function AdminUsersPage() {
   }
 
   async function remove(u: PublicUser) {
-    if (!window.confirm(`Xóa người dùng ${u.email}?`)) return;
     setBusyId(u.id);
     setError(null);
     try {
@@ -195,6 +196,7 @@ export default function AdminUsersPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Xóa thất bại");
+      setDeleteUser(null);
       setMessage("Đã xóa người dùng.");
       await load();
     } catch (err) {
@@ -468,7 +470,7 @@ export default function AdminUsersPage() {
                     }}
                     onEdit={() => startEdit(u)}
                     onToggleLock={() => void toggleLock(u)}
-                    onDelete={() => void remove(u)}
+                    onDelete={() => setDeleteUser(u)}
                   />
                 </td>
               </tr>
@@ -589,6 +591,24 @@ export default function AdminUsersPage() {
           </div>
         </div>
       ) : null}
+
+      <ConfirmTypeDeleteModal
+        open={Boolean(deleteUser)}
+        title="Xóa người dùng?"
+        description={
+          deleteUser
+            ? `${deleteUser.name} (${deleteUser.email}) sẽ bị xóa khỏi hệ thống.`
+            : ""
+        }
+        confirmLabel="Xóa người dùng"
+        busy={Boolean(deleteUser && busyId === deleteUser.id)}
+        onCancel={() => {
+          if (!busyId) setDeleteUser(null);
+        }}
+        onConfirm={() => {
+          if (deleteUser) void remove(deleteUser);
+        }}
+      />
     </section>
   );
 }

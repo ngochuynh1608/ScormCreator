@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ConfirmDeleteSlideModal,
-  NoticeModal,
-} from "@/components/SlideModals";
+import { ConfirmTypeDeleteModal } from "@/components/ConfirmTypeDeleteModal";
+import { NoticeModal } from "@/components/SlideModals";
 import type { ContentSlide, Project } from "@/lib/types";
 
 function fileUrl(projectId: string, relative: string | null | undefined) {
@@ -356,12 +354,12 @@ export function ProjectCard({
         </div>
       ) : null}
 
-      <ConfirmDeleteSlideModal
+      <ConfirmTypeDeleteModal
         open={deleteOpen}
-        slideLabel={project.title}
-        busy={deleting}
         title="Xóa trình chiếu?"
+        description={`Bạn có chắc chắn muốn xóa “${project.title}”?`}
         confirmLabel="Xóa trình chiếu"
+        busy={deleting}
         onCancel={() => {
           if (!deleting) setDeleteOpen(false);
         }}

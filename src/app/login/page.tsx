@@ -17,7 +17,7 @@ export default async function LoginPage({
           href="/"
           className="brand-font text-[15px] font-semibold tracking-tight text-[#0a1f28]"
         >
-          ScormCreator
+          Scorm Pro
         </Link>
         <Link href="/signup" className="auth-nav-link">
           Tạo tài khoản

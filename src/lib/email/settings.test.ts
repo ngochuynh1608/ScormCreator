@@ -18,10 +18,10 @@ describe("Resend settings helpers", () => {
   it("accepts plain and display-name from addresses", () => {
     assert.equal(isValidEmailFrom("noreply@example.com"), true);
     assert.equal(
-      isValidEmailFrom("ScormCreator <noreply@example.com>"),
+      isValidEmailFrom("Scorm Pro <noreply@example.com>"),
       true,
     );
-    assert.equal(extractFromEmail("ScormCreator <noreply@example.com>"), "noreply@example.com");
+    assert.equal(extractFromEmail("Scorm Pro <noreply@example.com>"), "noreply@example.com");
     assert.equal(isValidEmailFrom("not-an-email"), false);
     assert.equal(isValidEmailFrom("Name <bad>"), false);
   });

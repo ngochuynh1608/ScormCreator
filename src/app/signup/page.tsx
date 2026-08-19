@@ -10,7 +10,7 @@ export default function SignupPage() {
           href="/"
           className="brand-font text-[15px] font-semibold tracking-tight text-[#0a1f28]"
         >
-          ScormCreator
+          Scorm Pro
         </Link>
         <Link href="/login" className="auth-nav-link">
           Đăng nhập

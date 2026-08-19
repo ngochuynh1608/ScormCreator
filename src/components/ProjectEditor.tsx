@@ -1440,7 +1440,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
           href="/dashboard"
           className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]"
         >
-          ScormCreator
+          Scorm Pro
         </Link>
         <h1 className="brand-font text-2xl font-semibold text-[var(--panel)]">
           Đang xử lý file
@@ -1513,7 +1513,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                   href="/dashboard"
                   className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] transition hover:text-[#0f2a36]"
                 >
-                  ScormCreator
+                  Scorm Pro
                 </Link>
                 <input
                   className="brand-font mt-0.5 block w-full max-w-lg truncate border-0 bg-transparent text-base font-semibold outline-none md:text-xl"

@@ -52,9 +52,9 @@ export async function sendTestEmail(to: string) {
   const result = await resend.emails.send({
     from,
     to,
-    subject: "ScormCreator email test",
-    text: "Resend is configured. This is a test message from ScormCreator. You can ignore this email.",
-    html: `<p style="font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#0a1f28;">Resend is configured. This is a test message from ScormCreator. You can ignore this email.</p>`,
+    subject: "Scorm Pro email test",
+    text: "Resend is configured. This is a test message from Scorm Pro. You can ignore this email.",
+    html: `<p style="font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#0a1f28;">Resend is configured. This is a test message from Scorm Pro. You can ignore this email.</p>`,
   });
   if (result.error) {
     throw new Error(result.error.message || "Failed to send email");

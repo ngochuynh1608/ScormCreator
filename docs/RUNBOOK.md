@@ -1,4 +1,4 @@
-# ScormCreator operations runbook
+# Scorm Pro operations runbook
 
 ## Stack (Phương án 1 — one VPS)
 

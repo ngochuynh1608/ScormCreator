@@ -10,7 +10,7 @@ const beVietnam = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  title: "ScormCreator — PPTX thành bài giảng SCORM",
+  title: "Scorm Pro — PPTX thành bài giảng SCORM",
   description:
     "Chuyển PowerPoint thành bài học SCORM có giọng đọc AI và câu hỏi tương tác.",
 };

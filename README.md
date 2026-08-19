@@ -1,4 +1,4 @@
-# ScormCreator
+# Scorm Pro
 
 Công cụ web chuyển **PPTX → bài giảng SCORM** có giọng đọc AI (mock) và câu hỏi tương tác.
 

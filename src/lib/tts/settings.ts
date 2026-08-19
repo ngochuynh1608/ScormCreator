@@ -23,7 +23,7 @@ type SettingsDoc = TtsSettings & { id: string };
 const SETTINGS_ID = "default";
 
 export const DEFAULT_SAMPLE_TEXT =
-  "Xin chào, đây là giọng đọc mẫu của ScormCreator.";
+  "Xin chào, đây là giọng đọc mẫu của Scorm Pro.";
 
 const DEFAULTS: TtsSettings = {
   everaiApiKey: "",

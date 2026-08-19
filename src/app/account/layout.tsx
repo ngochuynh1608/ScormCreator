@@ -27,7 +27,7 @@ export default async function AccountLayout({
             href={homeHref}
             className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]"
           >
-            ScormCreator
+            Scorm Pro
           </Link>
           <p className="brand-font text-xl font-semibold text-[#0f2a36]">
             Tài khoản

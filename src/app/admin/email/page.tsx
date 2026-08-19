@@ -163,7 +163,7 @@ export default function AdminEmailPage() {
             type="text"
             autoComplete="off"
             value={draft.from}
-            placeholder="ScormCreator &lt;noreply@your-domain.com&gt;"
+            placeholder="Scorm Pro &lt;noreply@your-domain.com&gt;"
             onChange={(e) => setDraft({ ...draft, from: e.target.value })}
             className="admin-input"
           />

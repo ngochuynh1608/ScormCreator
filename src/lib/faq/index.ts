@@ -6,7 +6,7 @@ export type { FaqItem } from "./types";
 
 const DEFAULT_FAQS: Array<Pick<FaqItem, "question" | "answer" | "sortOrder">> = [
   {
-    question: "ScormCreator hỗ trợ định dạng nào?",
+    question: "Scorm Pro hỗ trợ định dạng nào?",
     answer:
       "Upload file .pptx hoặc .pdf. Hệ thống tách slide, ảnh và ghi chú để bạn chỉnh sửa trước khi xuất SCORM.",
     sortOrder: 1,

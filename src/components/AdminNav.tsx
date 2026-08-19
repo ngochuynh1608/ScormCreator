@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
+  { href: "/admin", label: "Tổng quan", hint: "Số liệu & hoạt động" },
   { href: "/admin/users", label: "Người dùng", hint: "Học viên & gói" },
   { href: "/admin/accounts", label: "Tài khoản", hint: "Quản trị hệ thống" },
   { href: "/admin/plans", label: "Gói đăng ký", hint: "Hạn mức & giá" },
@@ -21,7 +22,9 @@ export function AdminNav() {
     <nav className="admin-nav" aria-label="Menu admin">
       {ITEMS.map((item) => {
         const active =
-          pathname === item.href || pathname.startsWith(`${item.href}/`);
+          item.href === "/admin"
+            ? pathname === "/admin"
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link
             key={item.href}

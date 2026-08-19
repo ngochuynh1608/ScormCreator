@@ -24,7 +24,7 @@ export default async function AdminLayout({
       <header className="admin-header relative z-10">
         <div className="admin-header-inner">
           <div className="min-w-0">
-            <Link href="/admin/users" className="admin-brand">
+            <Link href="/admin" className="admin-brand">
               ScormCreator
             </Link>
             <p className="brand-font mt-0.5 text-lg font-semibold tracking-tight text-[#0a1f28] md:text-xl">

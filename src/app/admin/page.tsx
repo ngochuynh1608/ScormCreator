@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { AdminOverviewDashboard } from "@/components/AdminOverviewDashboard";
 
 export default function AdminIndexPage() {
-  redirect("/admin/users");
+  return <AdminOverviewDashboard />;
 }

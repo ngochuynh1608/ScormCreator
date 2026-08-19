@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { findUserById, toPublicUser } from "@/lib/auth/users";
 import { listPlans } from "@/lib/auth/plans";
 import { listActiveFaqs } from "@/lib/faq";
+import { formatStorageMb } from "@/lib/format";
 
 export default async function HomePage() {
   const session = await getSession();
@@ -242,7 +243,7 @@ export default async function HomePage() {
                 <ul className="mt-5 space-y-2 text-sm text-[#3d5a66]">
                   <li>{plan.maxPresentations} trình chiếu</li>
                   <li>{plan.everaiCredits.toLocaleString("vi-VN")} credit AI</li>
-                  <li>{plan.maxStudents} học viên</li>
+                  <li>{formatStorageMb(plan.maxStudents)} dữ liệu</li>
                 </ul>
                 <Link
                   href={user ? "/account/subscription" : "/signup"}

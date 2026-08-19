@@ -3,7 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import { requireSession } from "@/lib/auth/guards";
 import {
   assertCanCreatePresentation,
-  presentationLimitResponse,
+  assertStorageAvailable,
+  quotaLimitResponse,
 } from "@/lib/auth/quota";
 import { listProjects, saveProject } from "@/lib/db";
 import { ensureProjectDirs } from "@/lib/storage";
@@ -25,8 +26,9 @@ export async function POST(req: NextRequest) {
 
   try {
     await assertCanCreatePresentation(auth.session.userId);
+    await assertStorageAvailable(auth.session.userId);
   } catch (err) {
-    const limited = presentationLimitResponse(err);
+    const limited = quotaLimitResponse(err);
     if (limited) return limited;
     throw err;
   }

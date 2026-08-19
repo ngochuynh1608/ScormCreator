@@ -13,6 +13,8 @@ import {
 } from "@/lib/auth/users";
 
 import { getCreditSnapshots } from "@/lib/credits/wallet";
+import { addExtraStorageMb } from "@/lib/auth/usage";
+import { getStorageSnapshot, getStorageSnapshots } from "@/lib/auth/quota";
 
 export const runtime = "nodejs";
 
@@ -24,7 +26,8 @@ export async function GET() {
     .map(toPublicUser)
     .filter((u) => u.role !== "admin");
   const credits = await getCreditSnapshots(users.map((u) => u.id));
-  return NextResponse.json({ users, credits });
+  const storage = await getStorageSnapshots(users);
+  return NextResponse.json({ users, credits, storage });
 }
 
 function parsePlanExpiresAt(value: unknown): string | null | undefined {
@@ -95,6 +98,7 @@ const patchSchema = z.object({
   planId: z.string().nullable().optional(),
   planExpiresAt: z.string().nullable().optional(),
   password: z.string().min(6).max(100).optional(),
+  grantStorageMb: z.number().int().min(1).max(1_000_000).optional(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -123,6 +127,14 @@ export async function PATCH(req: NextRequest) {
         },
         { status: 400 },
       );
+    }
+    if (body.grantStorageMb) {
+      await addExtraStorageMb(body.userId, body.grantStorageMb);
+      const storage = await getStorageSnapshot(body.userId);
+      return NextResponse.json({
+        user: toPublicUser(existing),
+        storage,
+      });
     }
     if (body.userId === auth.session.userId && body.locked === true) {
       return NextResponse.json(

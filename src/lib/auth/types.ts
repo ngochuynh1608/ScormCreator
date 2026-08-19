@@ -48,7 +48,7 @@ export type SubscriptionPlan = {
   maxPresentations: number;
   /** EverAI TTS credits. */
   everaiCredits: number;
-  /** Max students / learners. */
+  /** Max project storage in MB (legacy field name `maxStudents`). */
   maxStudents: number;
   /** Monthly price in VND. 0 = free. */
   monthlyPrice: number;

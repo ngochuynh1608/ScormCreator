@@ -5,8 +5,9 @@ import {
   guestCookieName,
 } from "@/lib/auth/guest";
 import { requireSession } from "@/lib/auth/guards";
-import { assertCanCreatePresentation, presentationLimitResponse } from "@/lib/auth/quota";
+import { assertCanCreatePresentation, assertStorageAvailable, quotaLimitResponse } from "@/lib/auth/quota";
 import { getProject } from "@/lib/db";
+import { projectSizeBytes } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,10 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     }
     if (existing.ownerId !== auth.session.userId) {
       await assertCanCreatePresentation(auth.session.userId);
+      await assertStorageAvailable(
+        auth.session.userId,
+        await projectSizeBytes(id),
+      );
     }
     const project = await claimGuestProject(id, auth.session.userId, token);
     if (!project) {
@@ -46,7 +51,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     clearGuestClaimCookie(res, id);
     return res;
   } catch (err) {
-    const limited = presentationLimitResponse(err);
+    const limited = quotaLimitResponse(err);
     if (limited) return limited;
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Nhận dự án thất bại" },

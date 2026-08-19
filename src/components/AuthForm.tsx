@@ -184,7 +184,7 @@ export function AuthForm({
               required
               type="email"
               autoComplete="email"
-              placeholder="ban@congty.com"
+              placeholder="Nhập email ..."
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="auth-input"

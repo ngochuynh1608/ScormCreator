@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SubscriptionPlan } from "@/lib/auth/types";
 import type { PlanOrder } from "@/lib/subscription/types";
 import { planExpiryFromMonths, isPlanExpired, isLowerPlan } from "@/lib/auth/plan-expiry";
+import { formatBytes, formatStorageMb } from "@/lib/format";
 import { BankTransferCard } from "@/components/BankTransferCard";
 import { PayosCheckoutCard } from "@/components/PayosCheckoutCard";
 import { RenewIcon, UpgradeIcon } from "@/components/account-icons";
@@ -17,8 +18,12 @@ type Usage = {
   creditsReserved?: number;
   creditsAvailable?: number;
   creditsCeiling?: number;
-  studentsUsed: number;
-  studentsLimit: number;
+  studentsUsed?: number;
+  studentsLimit?: number;
+  storageUsedBytes: number;
+  storageLimitBytes: number;
+  storageExtraMb?: number;
+  storageRemainingBytes?: number;
 };
 
 type BankInfo = {
@@ -409,10 +414,12 @@ export function AccountSubscriptionPanel() {
       percent: barPercent(ceiling - available, ceiling),
     },
     {
-      label: "Số lượng học viên",
-      detail: "Đã sử dụng / Giới hạn",
-      value: ratioLabel(usage.studentsUsed, usage.studentsLimit),
-      percent: barPercent(usage.studentsUsed, usage.studentsLimit),
+      label: "Dữ liệu",
+      detail: usage.storageExtraMb
+        ? `Đã dùng / Còn lại (gói + ${usage.storageExtraMb.toLocaleString("vi-VN")} MB cộng thêm)`
+        : "Đã dùng / Còn lại",
+      value: `${formatBytes(usage.storageUsedBytes || 0)} / còn ${formatBytes(usage.storageRemainingBytes ?? Math.max(0, (usage.storageLimitBytes || 0) - (usage.storageUsedBytes || 0)))}`,
+      percent: barPercent(usage.storageUsedBytes || 0, usage.storageLimitBytes || 0),
     },
   ];
 
@@ -669,7 +676,7 @@ export function AccountSubscriptionPanel() {
                           <li>
                             {p.everaiCredits.toLocaleString("vi-VN")} credit
                           </li>
-                          <li>{p.maxStudents} học viên</li>
+                          <li>{formatStorageMb(p.maxStudents)} dữ liệu</li>
                         </ul>
                       </div>
                     );
@@ -701,7 +708,7 @@ export function AccountSubscriptionPanel() {
                       {selectedPlan.everaiCredits.toLocaleString("vi-VN")}{" "}
                       credit
                     </li>
-                    <li>{selectedPlan.maxStudents} học viên</li>
+                    <li>{formatStorageMb(selectedPlan.maxStudents)} dữ liệu</li>
                   </ul>
                   <p className="mt-3 text-sm font-semibold text-[#0f2a36]">
                     {formatPrice(selectedPlan.monthlyPrice)}

@@ -202,7 +202,7 @@ export default function AdminEmailPage() {
             type="email"
             autoComplete="off"
             value={testTo}
-            placeholder="you@example.com"
+            placeholder="Nhập email ..."
             onChange={(e) => setTestTo(e.target.value)}
             className="admin-input"
           />

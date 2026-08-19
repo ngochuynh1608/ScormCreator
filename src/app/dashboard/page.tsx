@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CreditBalanceButton } from "@/components/CreditBalanceButton";
+import { formatBytes } from "@/lib/format";
 import { ProjectCard, ProjectCardSkeleton } from "@/components/ProjectCard";
 import { UploadZone } from "@/components/UploadZone";
 import { UserMenu } from "@/components/UserMenu";
@@ -19,6 +20,8 @@ type UsageInfo = {
   presentationsUsed: number;
   presentationsLimit: number;
   creditsAvailable: number;
+  storageUsedBytes: number;
+  storageRemainingBytes: number;
 };
 
 export default function DashboardPage() {
@@ -57,6 +60,8 @@ export default function DashboardPage() {
             presentationsUsed: Number(sub.usage.presentationsUsed || 0),
             presentationsLimit: Number(sub.usage.presentationsLimit || 0),
             creditsAvailable: Number(sub.usage.creditsAvailable || 0),
+            storageUsedBytes: Number(sub.usage.storageUsedBytes || 0),
+            storageRemainingBytes: Number(sub.usage.storageRemainingBytes || 0),
           });
         }
       } catch (err) {
@@ -90,6 +95,13 @@ export default function DashboardPage() {
           / {usage.presentationsLimit.toLocaleString("vi-VN")}
         </span>
       </span>
+      <span className="inline-flex h-9 items-center whitespace-nowrap rounded-full border border-[#c9d8e2] bg-white px-3 text-sm font-bold leading-none text-[#0f2a36]">
+        Dữ liệu {formatBytes(usage.storageUsedBytes)}
+        <span className="font-bold text-[#8a98a8]">
+          {" "}
+          · còn {formatBytes(usage.storageRemainingBytes)}
+        </span>
+      </span>
     </>
   ) : null;
 
@@ -97,7 +109,7 @@ export default function DashboardPage() {
     <main className="min-h-screen">
       <header className="relative z-50 border-b border-[#c9d8e2] bg-white/75 px-4 py-4 backdrop-blur md:px-8">
         <div className="flex items-center gap-2 md:hidden">
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {usage ? (
               <>
                 <CreditBalanceButton
@@ -110,6 +122,14 @@ export default function DashboardPage() {
                   <span className="font-bold text-[#8a98a8]">
                     {" "}
                     / {usage.presentationsLimit.toLocaleString("vi-VN")}
+                  </span>
+                </span>
+                <span className="inline-flex h-9 min-w-0 items-center truncate whitespace-nowrap rounded-full border border-[#c9d8e2] bg-white px-2.5 text-xs font-bold leading-none text-[#0f2a36]">
+                  <span className="max-[340px]:hidden">Dữ liệu </span>
+                  {formatBytes(usage.storageUsedBytes)}
+                  <span className="font-bold text-[#8a98a8]">
+                    {" "}
+                    · còn {formatBytes(usage.storageRemainingBytes)}
                   </span>
                 </span>
               </>

@@ -4,8 +4,7 @@ import { getQueueMetrics, convertQueueMax } from "@/lib/jobs/queues";
 import { isRedisConfigured } from "@/lib/jobs/connection";
 import { isObjectStorageConfigured } from "@/lib/object-storage";
 import { postgresConfigured } from "@/lib/store";
-import fs from "fs/promises";
-import { dataRoot } from "@/lib/storage";
+import { dataRoot, directorySize } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -17,7 +16,7 @@ export async function GET() {
   const queues = await getQueueMetrics();
   let dataDirBytes: number | null = null;
   try {
-    dataDirBytes = await dirSize(dataRoot());
+    dataDirBytes = await directorySize(dataRoot());
   } catch {
     dataDirBytes = null;
   }
@@ -34,21 +33,4 @@ export async function GET() {
     queues,
     dataDirBytes,
   });
-}
-
-async function dirSize(root: string): Promise<number> {
-  let total = 0;
-  async function walk(dir: string) {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    for (const e of entries) {
-      const abs = `${dir}/${e.name}`;
-      if (e.isDirectory()) await walk(abs);
-      else if (e.isFile()) {
-        const st = await fs.stat(abs);
-        total += st.size;
-      }
-    }
-  }
-  await walk(root);
-  return total;
 }

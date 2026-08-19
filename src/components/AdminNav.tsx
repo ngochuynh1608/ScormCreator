@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/admin/plans", label: "Gói đăng ký", hint: "Hạn mức & giá" },
   { href: "/admin/credits", label: "Credit", hint: "Gói nạp & PayOS" },
   { href: "/admin/transactions", label: "Lịch sử giao dịch", hint: "Đơn nạp & nâng cấp" },
+  { href: "/admin/data", label: "Quản lý dữ liệu", hint: "Project không chủ" },
   { href: "/admin/faq", label: "FAQ", hint: "Câu hỏi thường gặp" },
   { href: "/admin/tts", label: "Giọng đọc AI", hint: "API & mặc định" },
   { href: "/admin/email", label: "Email OTP", hint: "Resend API" },

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PublicUser, SubscriptionPlan } from "@/lib/auth/types";
 import type { CreditSnapshot } from "@/lib/credits/types";
+import type { StorageSnapshot } from "@/lib/auth/quota";
+import { formatBytes } from "@/lib/format";
 import { AdminActionsMenu } from "@/components/AdminActionsMenu";
 
 type Draft = {
@@ -53,9 +55,12 @@ export default function AdminUsersPage() {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [credits, setCredits] = useState<Record<string, CreditSnapshot>>({});
+  const [storage, setStorage] = useState<Record<string, StorageSnapshot>>({});
   const [grantUser, setGrantUser] = useState<PublicUser | null>(null);
   const [grantAmount, setGrantAmount] = useState("100");
   const [grantNote, setGrantNote] = useState("");
+  const [storageUser, setStorageUser] = useState<PublicUser | null>(null);
+  const [storageAmount, setStorageAmount] = useState("100");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,6 +76,7 @@ export default function AdminUsersPage() {
       if (!pRes.ok) throw new Error(pData.error || "Không tải được gói");
       setUsers(uData.users || []);
       setCredits(uData.credits || {});
+      setStorage(uData.storage || {});
       setPlans(pData.plans || []);
       setSignupPlanId(
         typeof pData.signupPlanId === "string" ? pData.signupPlanId : "",
@@ -245,6 +251,37 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function grantStorage() {
+    if (!storageUser) return;
+    setBusyId(storageUser.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: storageUser.id,
+          grantStorageMb: Number(storageAmount),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Cộng dung lượng thất bại");
+      if (data.storage) {
+        setStorage((prev) => ({ ...prev, [storageUser.id]: data.storage }));
+      }
+      setMessage(
+        `Đã cộng ${Number(storageAmount).toLocaleString("vi-VN")} MB dữ liệu cho ${storageUser.email}.`,
+      );
+      setStorageUser(null);
+      setStorageAmount("100");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Cộng dung lượng thất bại");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <section className="admin-panel">
       <div className="admin-panel-head">
@@ -368,6 +405,7 @@ export default function AdminUsersPage() {
               <th>Email</th>
               <th>Gói</th>
               <th>Credit còn</th>
+              <th>Dữ liệu</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
             </tr>
@@ -399,6 +437,15 @@ export default function AdminUsersPage() {
                 <td className="admin-cell-muted">
                   {(credits[u.id]?.available ?? 0).toLocaleString("vi-VN")}
                 </td>
+                <td className="admin-cell-muted">
+                  {formatBytes(storage[u.id]?.usedBytes || 0)}
+                  <span className="block text-xs">
+                    còn {formatBytes(storage[u.id]?.remainingBytes || 0)}
+                    {storage[u.id]?.extraMb
+                      ? ` · +${storage[u.id].extraMb.toLocaleString("vi-VN")} MB`
+                      : ""}
+                  </span>
+                </td>
                 <td>
                   {u.locked ? (
                     <span className="admin-badge admin-badge-warn">Đã khóa</span>
@@ -414,6 +461,10 @@ export default function AdminUsersPage() {
                       setGrantUser(u);
                       setGrantAmount("100");
                       setGrantNote("");
+                    }}
+                    onGrantStorage={() => {
+                      setStorageUser(u);
+                      setStorageAmount("100");
                     }}
                     onEdit={() => startEdit(u)}
                     onToggleLock={() => void toggleLock(u)}
@@ -484,6 +535,60 @@ export default function AdminUsersPage() {
           </div>
         </div>
       ) : null}
+
+      {storageUser ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[#0f2a36]/45 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !busyId && setStorageUser(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="brand-font text-xl font-semibold text-[#0f2a36]">
+              Cộng dung lượng
+            </h2>
+            <p className="mt-1 text-sm text-[#5b6b7c]">
+              {storageUser.name} · {storageUser.email}. Đã dùng{" "}
+              {formatBytes(storage[storageUser.id]?.usedBytes || 0)}, còn{" "}
+              {formatBytes(storage[storageUser.id]?.remainingBytes || 0)}
+              {storage[storageUser.id]?.extraMb
+                ? ` (đã cộng thêm ${storage[storageUser.id].extraMb.toLocaleString("vi-VN")} MB)`
+                : ""}
+              .
+            </p>
+            <label className="admin-label mt-4">
+              Số MB cộng thêm
+              <input
+                type="text"
+                value={storageAmount}
+                onChange={(e) => setStorageAmount(e.target.value)}
+                className="admin-input"
+              />
+            </label>
+            <div className="admin-form-actions mt-4">
+              <button
+                type="button"
+                disabled={Boolean(busyId)}
+                onClick={() => void grantStorage()}
+                className="admin-btn-dark"
+              >
+                {busyId ? "Đang cộng…" : "Cộng dung lượng"}
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(busyId)}
+                onClick={() => setStorageUser(null)}
+                className="admin-btn-muted"
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -516,6 +621,7 @@ function UserActionsMenu({
   user,
   busy,
   onGrant,
+  onGrantStorage,
   onEdit,
   onToggleLock,
   onDelete,
@@ -523,6 +629,7 @@ function UserActionsMenu({
   user: PublicUser;
   busy: boolean;
   onGrant: () => void;
+  onGrantStorage: () => void;
   onEdit: () => void;
   onToggleLock: () => void;
   onDelete: () => void;
@@ -542,6 +649,18 @@ function UserActionsMenu({
           >
             <CreditIcon />
             Cộng credit
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="admin-actions-item"
+            onClick={() => {
+              close();
+              onGrantStorage();
+            }}
+          >
+            <StorageIcon />
+            Cộng dung lượng
           </button>
           <button
             type="button"
@@ -596,6 +715,33 @@ function CreditIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function StorageIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="4"
+        y="4"
+        width="16"
+        height="6"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <rect
+        x="4"
+        y="14"
+        width="16"
+        height="6"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <circle cx="8" cy="7" r="1" fill="currentColor" />
+      <circle cx="8" cy="17" r="1" fill="currentColor" />
     </svg>
   );
 }

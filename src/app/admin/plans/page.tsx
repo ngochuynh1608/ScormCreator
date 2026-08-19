@@ -168,7 +168,7 @@ export default function AdminPlansPage() {
         <div>
           <h1 className="brand-font admin-title">Gói đăng ký</h1>
           <p className="admin-desc">
-            Số trình chiếu, credit AI, học viên và giá tháng (0 = miễn phí).
+            Số trình chiếu, credit AI, dung lượng dữ liệu và giá tháng (0 = miễn phí).
             Gói gán khi tạo tài khoản không tính thời gian hết hạn.
           </p>
         </div>
@@ -239,7 +239,7 @@ export default function AdminPlansPage() {
             onChange={(v) => setDraft({ ...draft, everaiCredits: v })}
           />
           <Field
-            label="Số học viên"
+            label="Dữ liệu (MB, tổng dung lượng bài giảng)"
             value={draft.maxStudents}
             onChange={(v) => setDraft({ ...draft, maxStudents: v })}
           />
@@ -281,7 +281,7 @@ export default function AdminPlansPage() {
               <th>Tên</th>
               <th>Trình chiếu</th>
               <th>Credit</th>
-              <th>Học viên</th>
+              <th>Dữ liệu</th>
               <th>Giá / tháng</th>
               <th>Thao tác</th>
             </tr>
@@ -297,7 +297,9 @@ export default function AdminPlansPage() {
                 </td>
                 <td className="admin-cell-muted">{p.maxPresentations}</td>
                 <td className="admin-cell-muted">{p.everaiCredits}</td>
-                <td className="admin-cell-muted">{p.maxStudents}</td>
+                <td className="admin-cell-muted">
+                  {p.maxStudents.toLocaleString("vi-VN")} MB
+                </td>
                 <td className="admin-cell-muted">
                   {p.monthlyPrice === 0
                     ? "Miễn phí"

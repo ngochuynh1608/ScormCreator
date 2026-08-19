@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import { createReadStream, existsSync } from "fs";
+import { existsSync } from "fs";
 import {
   S3Client,
   PutObjectCommand,
@@ -218,6 +218,13 @@ export async function listProjectObjectKeys(projectId: string) {
   return keys;
 }
 
-export function createLocalReadStream(absolutePath: string) {
-  return createReadStream(absolutePath);
+export async function deleteProjectObjects(projectId: string) {
+  if (!s3Configured()) return;
+  const keys = await listProjectObjectKeys(projectId);
+  await Promise.all(
+    keys.map((key) => {
+      const rel = key.replace(`projects/${projectId}/`, "");
+      return deleteObject(projectId, rel);
+    }),
+  );
 }

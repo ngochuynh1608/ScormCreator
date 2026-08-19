@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/guards";
 import { listPlans, getPlan, resolvePlanForUser, assertCanSelectPlan } from "@/lib/auth/plans";
-import { getUserUsage } from "@/lib/auth/usage";
 import {
   findUserById,
   toPublicUser,
   updateUser,
 } from "@/lib/auth/users";
 import { listProjects } from "@/lib/db";
+import { getStorageSnapshot } from "@/lib/auth/quota";
 import { getCreditSnapshot } from "@/lib/credits/wallet";
 import { getCreditBankSettings } from "@/lib/credits/settings";
 import { listPlanOrders } from "@/lib/subscription/orders";
@@ -20,8 +20,12 @@ export const runtime = "nodejs";
 function usagePayload(
   presentationsUsed: number,
   presentationsLimit: number,
-  studentsUsed: number,
-  studentsLimit: number,
+  storage: {
+    usedBytes: number;
+    extraMb: number;
+    limitBytes: number;
+    remainingBytes: number;
+  },
   credits: CreditSnapshot,
 ) {
   return {
@@ -33,8 +37,10 @@ function usagePayload(
     creditsReserved: credits.reserved,
     creditsAvailable: credits.available,
     creditsCeiling: credits.ceiling,
-    studentsUsed,
-    studentsLimit,
+    storageUsedBytes: storage.usedBytes,
+    storageLimitBytes: storage.limitBytes,
+    storageExtraMb: storage.extraMb,
+    storageRemainingBytes: storage.remainingBytes,
   };
 }
 
@@ -65,9 +71,9 @@ export async function GET() {
     }
   }
 
-  const usage = await getUserUsage(user.id);
   const credits = await getCreditSnapshot(user.id);
   const projects = await listProjects(user.id);
+  const storage = await getStorageSnapshot(user.id);
   const bank = await getCreditBankSettings();
   const planOrders = await listPlanOrders({ userId: user.id });
 
@@ -87,8 +93,7 @@ export async function GET() {
     usage: usagePayload(
       projects.length,
       plan.maxPresentations,
-      usage.studentsUsed,
-      plan.maxStudents,
+      storage,
       credits,
     ),
   });
@@ -143,9 +148,9 @@ export async function POST(req: NextRequest) {
       planId: plan.id,
       planExpiresAt: null,
     });
-    const usage = await getUserUsage(nextUser.id);
     const credits = await getCreditSnapshot(nextUser.id);
     const projects = await listProjects(nextUser.id);
+    const storage = await getStorageSnapshot(nextUser.id);
     const plans = await listPlans();
 
     return NextResponse.json({
@@ -156,8 +161,7 @@ export async function POST(req: NextRequest) {
       usage: usagePayload(
         projects.length,
         plan.maxPresentations,
-        usage.studentsUsed,
-        plan.maxStudents,
+        storage,
         credits,
       ),
       notice: "Đã chuyển sang gói miễn phí.",

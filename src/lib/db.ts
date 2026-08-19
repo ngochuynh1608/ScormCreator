@@ -9,6 +9,7 @@ import {
 } from "./storage";
 import { COLLECTIONS, getDocumentStore } from "./store";
 import type { Project, Slide, TtsJob } from "./types";
+import { deleteProjectObjects } from "./object-storage";
 
 /** Folder name is the source of truth for project id (fixes copied folders). */
 function withFolderId(folderId: string, meta: Project): Project {
@@ -75,6 +76,7 @@ export async function updateSlides(
 }
 
 export async function deleteProject(id: string): Promise<boolean> {
+  await deleteProjectObjects(id).catch(() => undefined);
   const dir = projectDir(id);
   try {
     await fs.rm(dir, { recursive: true, force: true });

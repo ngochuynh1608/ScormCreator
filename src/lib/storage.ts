@@ -113,3 +113,33 @@ export async function writeJson(filePath: string, data: unknown) {
 export function publicFileUrl(projectId: string, relativePath: string) {
   return `/api/files/${projectId}/${relativePath.split(path.sep).join("/")}`;
 }
+
+export async function directorySize(root: string): Promise<number> {
+  let total = 0;
+  async function walk(dir: string) {
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const abs = path.join(dir, e.name);
+      if (e.isDirectory()) await walk(abs);
+      else if (e.isFile()) {
+        try {
+          const st = await fs.stat(abs);
+          total += st.size;
+        } catch {
+          // skip unreadable files
+        }
+      }
+    }
+  }
+  await walk(root);
+  return total;
+}
+
+export async function projectSizeBytes(projectId: string): Promise<number> {
+  return directorySize(projectDir(projectId));
+}

@@ -7,7 +7,7 @@ const DEFAULT_FREE: Omit<SubscriptionPlan, "id" | "createdAt" | "updatedAt"> = {
   name: "Miễn phí",
   maxPresentations: 3,
   everaiCredits: 50,
-  maxStudents: 10,
+  maxStudents: 100,
   monthlyPrice: 0,
 };
 

@@ -46,6 +46,11 @@ import {
 import { AuthForm } from "@/components/AuthForm";
 import { SlideStageView } from "@/components/SlideStageView";
 import { UserMenu } from "@/components/UserMenu";
+import {
+  UploadProgressBar,
+  type UploadProgressState,
+} from "@/components/UploadProgressBar";
+import { postFormData } from "@/lib/upload-with-progress";
 
 function fileUrl(
   projectId: string,
@@ -406,6 +411,8 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null);
   const [replaceBusy, setReplaceBusy] = useState(false);
   const [replaceError, setReplaceError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] =
+    useState<UploadProgressState | null>(null);
   const [generateAllOpen, setGenerateAllOpen] = useState(false);
   const [generateAllCount, setGenerateAllCount] = useState(0);
   const [ttsSlideStatus, setTtsSlideStatus] = useState<
@@ -849,17 +856,31 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   async function uploadBlankMedia(slideId: string, file: File) {
     setReplaceBusy(true);
     setMessage("Đang tải media lên slide…");
+    setUploadProgress({
+      label: "Tải media lên slide",
+      fileName: file.name,
+      percent: 0,
+      phase: "uploading",
+    });
     try {
       const form = new FormData();
       form.append("slideId", slideId);
       form.append("file", file);
-      const res = await fetch(`/api/projects/${projectId}/visual`, {
-        method: "POST",
-        body: form,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload thất bại");
-      setProject(data.project);
+      const { ok, data } = await postFormData(
+        `/api/projects/${projectId}/visual`,
+        form,
+        (p) =>
+          setUploadProgress({
+            label: "Tải media lên slide",
+            fileName: file.name,
+            percent: p.percent,
+            loaded: p.loaded,
+            total: p.total,
+            phase: p.phase,
+          }),
+      );
+      if (!ok) throw new Error(String(data.error || "Upload thất bại"));
+      setProject(data.project as Project);
       setMessage(
         data.kind === "video"
           ? "Đã gắn video cho slide."
@@ -869,6 +890,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       setMessage(err instanceof Error ? err.message : "Upload thất bại");
     } finally {
       setReplaceBusy(false);
+      setUploadProgress(null);
     }
   }
 
@@ -1161,20 +1183,40 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
 
   async function uploadAudio(file: File) {
     if (!selected || selected.type !== "content") return;
-    const form = new FormData();
-    form.append("slideId", selected.id);
-    form.append("file", file);
-    const res = await fetch(`/api/projects/${projectId}/audio`, {
-      method: "POST",
-      body: form,
+    setUploadProgress({
+      label: "Tải audio lên",
+      fileName: file.name,
+      percent: 0,
+      phase: "uploading",
     });
-    const data = await res.json();
-    if (!res.ok) {
-      setMessage(data.error || "Upload audio thất bại");
-      return;
+    try {
+      const form = new FormData();
+      form.append("slideId", selected.id);
+      form.append("file", file);
+      const { ok, data } = await postFormData(
+        `/api/projects/${projectId}/audio`,
+        form,
+        (p) =>
+          setUploadProgress({
+            label: "Tải audio lên",
+            fileName: file.name,
+            percent: p.percent,
+            loaded: p.loaded,
+            total: p.total,
+            phase: p.phase,
+          }),
+      );
+      if (!ok) {
+        setMessage(String(data.error || "Upload audio thất bại"));
+        return;
+      }
+      setProject(data.project as Project);
+      setMessage("Đã gắn audio tải lên.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Upload audio thất bại");
+    } finally {
+      setUploadProgress(null);
     }
-    setProject(data.project);
-    setMessage("Đã gắn audio tải lên.");
   }
 
   async function assignExistingAudio(audioPath: string) {
@@ -1196,18 +1238,32 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   async function importNarrationDocx(file: File) {
     setImportBusy(true);
     setMessage("Đang nhập lời thoại từ DOCX…");
+    setUploadProgress({
+      label: "Nhập lời thoại",
+      fileName: file.name,
+      percent: 0,
+      phase: "uploading",
+    });
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch(`/api/projects/${projectId}/narration-import`, {
-        method: "POST",
-        body: form,
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Nhập lời thoại thất bại");
+      const { ok, data } = await postFormData(
+        `/api/projects/${projectId}/narration-import`,
+        form,
+        (p) =>
+          setUploadProgress({
+            label: "Nhập lời thoại",
+            fileName: file.name,
+            percent: p.percent,
+            loaded: p.loaded,
+            total: p.total,
+            phase: p.phase,
+          }),
+      );
+      if (!ok) {
+        throw new Error(String(data.error || "Nhập lời thoại thất bại"));
       }
-      setProject(data.project);
+      setProject(data.project as Project);
       const missing =
         Array.isArray(data.missing) && data.missing.length > 0
           ? ` · Bỏ qua slide không tồn tại: ${data.missing.join(", ")}`
@@ -1219,6 +1275,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       setMessage(err instanceof Error ? err.message : "Nhập lời thoại thất bại");
     } finally {
       setImportBusy(false);
+      setUploadProgress(null);
     }
   }
 
@@ -1375,17 +1432,31 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     if (!replaceTarget || replaceTarget.type !== "content") return;
     setReplaceBusy(true);
     setReplaceError(null);
+    setUploadProgress({
+      label: "Thay thế nội dung slide",
+      fileName: file.name,
+      percent: 0,
+      phase: "uploading",
+    });
     try {
       const form = new FormData();
       form.append("slideId", replaceTarget.id);
       form.append("file", file);
-      const res = await fetch(`/api/projects/${projectId}/visual`, {
-        method: "POST",
-        body: form,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Thay thế thất bại");
-      setProject(data.project);
+      const { ok, data } = await postFormData(
+        `/api/projects/${projectId}/visual`,
+        form,
+        (p) =>
+          setUploadProgress({
+            label: "Thay thế nội dung slide",
+            fileName: file.name,
+            percent: p.percent,
+            loaded: p.loaded,
+            total: p.total,
+            phase: p.phase,
+          }),
+      );
+      if (!ok) throw new Error(String(data.error || "Thay thế thất bại"));
+      setProject(data.project as Project);
       setReplaceTargetId(null);
       setMessage(
         data.kind === "video"
@@ -1396,25 +1467,40 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       setReplaceError(err instanceof Error ? err.message : "Thay thế thất bại");
     } finally {
       setReplaceBusy(false);
+      setUploadProgress(null);
     }
   }
 
   async function uploadOverlayImage(file: File): Promise<string | null> {
     if (!selected || selected.type !== "content") return null;
     setDesignBusy(true);
+    setUploadProgress({
+      label: "Tải ảnh chèn lên",
+      fileName: file.name,
+      percent: 0,
+      phase: "uploading",
+    });
     try {
       const form = new FormData();
       form.append("slideId", selected.id);
       form.append("file", file);
       form.append("asOverlay", "1");
-      const res = await fetch(`/api/projects/${projectId}/visual`, {
-        method: "POST",
-        body: form,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload ảnh chèn thất bại");
-      setProject(data.project);
-      return (data.relativePath as string) || null;
+      const { ok, data } = await postFormData(
+        `/api/projects/${projectId}/visual`,
+        form,
+        (p) =>
+          setUploadProgress({
+            label: "Tải ảnh chèn lên",
+            fileName: file.name,
+            percent: p.percent,
+            loaded: p.loaded,
+            total: p.total,
+            phase: p.phase,
+          }),
+      );
+      if (!ok) throw new Error(String(data.error || "Upload ảnh chèn thất bại"));
+      setProject(data.project as Project);
+      return (typeof data.relativePath === "string" && data.relativePath) || null;
     } catch (err) {
       setMessage(
         err instanceof Error ? err.message : "Upload ảnh chèn thất bại",
@@ -1422,6 +1508,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       return null;
     } finally {
       setDesignBusy(false);
+      setUploadProgress(null);
     }
   }
 
@@ -1450,6 +1537,15 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             <span>.</span>
           </span>
         </h1>
+        <div className="w-full max-w-sm">
+          <UploadProgressBar
+            progress={{
+              label: "Máy chủ đang tách slide và tạo ảnh",
+              percent: 0,
+              phase: "indeterminate",
+            }}
+          />
+        </div>
       </div>
     );
   }
@@ -1927,6 +2023,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         slideLabel={slideLabel(replaceTarget)}
         busy={replaceBusy}
         error={replaceError}
+        progress={replaceBusy ? uploadProgress : null}
         onCancel={() => {
           if (replaceBusy) return;
           setReplaceTargetId(null);
@@ -1934,6 +2031,13 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         }}
         onUpload={(file) => void uploadReplaceMedia(file)}
       />
+      {uploadProgress && !replaceTargetId ? (
+        <div className="pointer-events-none fixed inset-x-4 bottom-4 z-[90] mx-auto w-auto max-w-md sm:inset-x-auto sm:right-6 sm:left-auto">
+          <div className="pointer-events-auto rounded-2xl border border-[#d5e1ea] bg-white p-4 shadow-xl">
+            <UploadProgressBar progress={uploadProgress} />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { UploadProgressBar, type UploadProgressState } from "@/components/UploadProgressBar";
+import { postFormData } from "@/lib/upload-with-progress";
 
 export function UploadZone() {
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState<"upload" | "empty" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<UploadProgressState | null>(null);
 
   const openEditor = (projectId: string) => {
     window.location.assign(`/projects/${projectId}`);
@@ -14,16 +17,35 @@ export function UploadZone() {
   const upload = useCallback(async (file: File) => {
     setError(null);
     setBusy("upload");
+    setProgress({
+      label: "Tải file lên",
+      fileName: file.name,
+      percent: 0,
+      phase: "uploading",
+    });
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload thất bại");
-      openEditor(data.project.id);
+      const { ok, data } = await postFormData("/api/upload", form, (p) =>
+        setProgress({
+          label: "Tải file lên",
+          fileName: file.name,
+          percent: p.percent,
+          loaded: p.loaded,
+          total: p.total,
+          phase: p.phase,
+        }),
+      );
+      if (!ok) throw new Error(String(data.error || "Upload thất bại"));
+      const id = typeof data.project === "object" && data.project
+        ? (data.project as { id?: string }).id
+        : undefined;
+      if (!id) throw new Error("Không nhận được dự án sau upload.");
+      openEditor(id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload thất bại");
       setBusy(null);
+      setProgress(null);
     }
   }, []);
 
@@ -80,22 +102,12 @@ export function UploadZone() {
             }}
           />
           <span className="brand-font text-xl font-semibold text-[var(--panel)] sm:text-2xl">
-            {busy === "upload" ? (
-              <>
-                Đang tải lên
-                <span className="loading-dots" aria-hidden>
-                  <span>.</span>
-                  <span>.</span>
-                  <span>.</span>
-                </span>
-              </>
-            ) : (
-              "Tải file .pptx / .pdf lên"
-            )}
+            {busy === "upload" ? "Đang tải lên" : "Tải file .pptx / .pdf lên"}
           </span>
           <span className="mt-2 text-center text-sm text-[var(--muted)]">
-            Kéo thả hoặc bấm để chọn — tối đa{" "}
-            {process.env.NEXT_PUBLIC_MAX_UPLOAD_MB || 500}MB
+            {busy === "upload"
+              ? "Giữ cửa sổ này mở đến khi xong."
+              : `Kéo thả hoặc bấm để chọn — tối đa ${process.env.NEXT_PUBLIC_MAX_UPLOAD_MB || 500}MB`}
           </span>
         </label>
 
@@ -124,6 +136,11 @@ export function UploadZone() {
           </span>
         </button>
       </div>
+      {busy === "upload" && progress ? (
+        <div className="mt-4 rounded-2xl border border-[#d5e1ea] bg-white/90 p-4">
+          <UploadProgressBar progress={progress} />
+        </div>
+      ) : null}
       {error ? (
         <p className="mt-3 text-sm font-medium text-[var(--danger)]">{error}</p>
       ) : null}

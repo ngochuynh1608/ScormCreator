@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  UploadProgressBar,
+  type UploadProgressState,
+} from "@/components/UploadProgressBar";
 
 export function ConfirmDeleteSlideModal({
   open,
@@ -258,6 +262,7 @@ export function ReplaceSlideMediaModal({
   slideLabel,
   busy,
   error,
+  progress,
   onCancel,
   onUpload,
 }: {
@@ -265,6 +270,7 @@ export function ReplaceSlideMediaModal({
   slideLabel: string;
   busy?: boolean;
   error?: string | null;
+  progress?: UploadProgressState | null;
   onCancel: () => void;
   onUpload: (file: File) => void;
 }) {
@@ -368,7 +374,11 @@ export function ReplaceSlideMediaModal({
         {error ? (
           <p className="mt-3 text-sm font-medium text-[#b42318]">{error}</p>
         ) : null}
-        {busy ? (
+        {busy && progress ? (
+          <div className="mt-4 text-left">
+            <UploadProgressBar progress={progress} />
+          </div>
+        ) : busy ? (
           <p className="mt-3 text-sm font-medium text-[#2f6fed]">
             Đang tải lên và thay thế…
           </p>

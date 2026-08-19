@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { UploadProgressBar, type UploadProgressState } from "@/components/UploadProgressBar";
+import { postFormData } from "@/lib/upload-with-progress";
 
 const ACCEPT =
   ".pptx,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf";
@@ -15,22 +17,39 @@ export function HomeUploadHero() {
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<UploadProgressState | null>(null);
 
   const uploadFile = useCallback(async (file: File) => {
     setError(null);
     setBusy(true);
+    setProgress({
+      label: "Tải file lên",
+      fileName: file.name,
+      percent: 0,
+      phase: "uploading",
+    });
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload thất bại");
-      const id = data.project?.id;
+      const { ok, data } = await postFormData("/api/upload", form, (p) =>
+        setProgress({
+          label: "Tải file lên",
+          fileName: file.name,
+          percent: p.percent,
+          loaded: p.loaded,
+          total: p.total,
+          phase: p.phase,
+        }),
+      );
+      if (!ok) throw new Error(String(data.error || "Upload thất bại"));
+      const project = data.project as { id?: string } | undefined;
+      const id = project?.id;
       if (!id) throw new Error("Không nhận được dự án sau upload.");
       window.location.assign(`/projects/${id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload thất bại");
       setBusy(false);
+      setProgress(null);
     }
   }, []);
 
@@ -78,22 +97,11 @@ export function HomeUploadHero() {
         />
         <span className="relative z-[1] min-w-0">
           <span className="block text-base font-semibold tracking-tight text-white md:text-lg">
-            {busy ? (
-              <>
-                Đang mở editor
-                <span className="loading-dots" aria-hidden>
-                  <span>.</span>
-                  <span>.</span>
-                  <span>.</span>
-                </span>
-              </>
-            ) : (
-              "Tải PPTX hoặc PDF"
-            )}
+            {busy ? "Đang tải lên" : "Tải PPTX hoặc PDF"}
           </span>
           <span className="mt-1 block text-sm text-white/65">
             {busy
-              ? "Đang xử lý file, vui lòng chờ…"
+              ? "Giữ cửa sổ này mở đến khi mở editor."
               : `Kéo thả hoặc bấm chọn · tối đa ${process.env.NEXT_PUBLIC_MAX_UPLOAD_MB || 500}MB`}
           </span>
         </span>
@@ -101,17 +109,14 @@ export function HomeUploadHero() {
           className="relative z-[1] inline-flex h-[2.625rem] min-w-[5.5rem] shrink-0 items-center justify-center bg-[#1aa86b] px-4 py-2.5 text-sm font-bold text-[#042218] transition group-hover:bg-[#22c07a]"
           aria-live="polite"
         >
-          {busy ? (
-            <span className="loading-dots loading-dots-pill" aria-hidden>
-              <span />
-              <span />
-              <span />
-            </span>
-          ) : (
-            "Bắt đầu"
-          )}
+          {busy ? `${progress?.percent ?? 0}%` : "Bắt đầu"}
         </span>
       </label>
+      {busy && progress ? (
+        <div className="mt-4">
+          <UploadProgressBar progress={progress} />
+        </div>
+      ) : null}
       {error ? (
         <p className="mt-3 text-sm font-semibold text-[#b5471d]">{error}</p>
       ) : null}

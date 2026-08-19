@@ -629,6 +629,28 @@ a {
   }
 }
 
+@keyframes upload-progress-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.upload-progress-indet {
+  width: 36%;
+  animation: upload-progress-slide 1.15s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-progress-indet {
+    animation: none;
+    width: 100%;
+    opacity: 0.7;
+  }
+}
+
 @keyframes media-shimmer {
   100% {
     transform: translateX(100%);
